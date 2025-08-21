@@ -1,0 +1,223 @@
+:root {
+  --peach: #f7c59f;
+  --space-cadet: #2a324b;
+  --slate-gray: #767b91;
+  --french-gray: #c7ccdb;
+  --alice-blue: #e1e5ee;
+}
+
+.host-view {
+  background-color: var(--alice-blue);
+  border: 1px solid var(--french-gray);
+  border-radius: 8px;
+  padding: 20px;
+  margin: 20px;
+}
+
+.title {
+  color: var(--space-cadet);
+  font-family: Arial, sans-serif;
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.user-list {
+  border-top: 1px solid var(--french-gray);
+  padding-top: 20px;
+}
+
+.user-item {
+  color: var(--space-cadet);
+  font-family: Arial, sans-serif;
+  font-size: 16px;
+  list-style: none;
+  margin-bottom: 5px;
+}
+
+.playlist-container {
+  max-width: 800px;
+  /* Increased width */
+  margin: 20px auto;
+  padding: 2rem;
+  background-color: #f7f7f7;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+  /* Enable horizontal scrolling if table is wider than screen */
+}
+
+.playlist-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-size: 2rem;
+}
+
+.playlist-error {
+  color: #d32f2f;
+  text-align: center;
+}
+
+.playlist-table {
+  width: 100%;
+  border-collapse: collapse;
+  /* Remove space between borders */
+}
+
+.playlist-table th,
+.playlist-table td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  /* Add horizontal line between rows */
+}
+
+.playlist-table th {
+  background-color: #333;
+  color: white;
+}
+
+.playlist-table tr:nth-child(even) {
+  background-color: #f2f2f2;
+  /* Zebra stripes */
+}
+
+.vote-button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-left: 0.5rem;
+}
+
+.vote-button.upvote {
+  color: #4caf50;
+}
+
+.vote-button.downvote {
+  color: #f44336;
+}
+
+.playlist-host-container {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 2rem;
+  background-color: #f7f7f7;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  overflow-x: auto;
+}
+
+.playlist-host-header {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  color: #333;
+  font-size: 2rem;
+}
+
+.playlist-host-error {
+  color: #d32f2f;
+  text-align: center;
+}
+
+.playlist-host-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.playlist-host-table th,
+.playlist-host-table td {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+}
+
+.playlist-host-table th {
+  text-align: center;
+  background-color: #333;
+  color: white;
+}
+
+.playlist-host-table tr:nth-child(even) {
+  background-color: #f2f2f2;
+}
+
+.vote-button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 1.2rem;
+  margin-left: 0.5rem;
+}
+
+.vote-button.upvote {
+  color: #4caf50;
+}
+
+.vote-button.downvote {
+  color: #f44336;
+}
+
+.playlist-host-table .play-song-cell {
+  cursor: pointer;
+}
+
+.playlist-host-table .play-song-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #333;
+  /* Match your body text color */
+  text-align: left;
+  font-size: inherit;
+  cursor: pointer;
+  text-decoration: none;
+  /* Remove underline */
+  display: block;
+  /* Make it a block to fill the cell for easier clicking */
+  transition: color 0.3s ease;
+  /* Smooth transition for color change */
+  font-weight: normal;
+  /* Default weight for text */
+}
+
+/* Hover effect for the song title */
+.playlist-host-table .play-song-button:hover,
+.playlist-host-table .play-song-button:focus {
+  color: #1a73e8;
+  /* A subtle color change on hover */
+  text-decoration: none;
+  /* No underline on hover */
+  outline: none;
+  /* Remove focus outline to maintain sleek appearance */
+}
+
+/* Optional: Style for when an actual <a> tag is used */
+.playlist-host-table a.play-song-button {
+  all: unset;
+  /* This will remove all default styles of the <a> tag */
+  color: #333;
+  /* Same as your body text */
+  cursor: pointer;
+  display: block;
+}
+
+.playlist-host-table a.play-song-button:hover {
+  color: #1a73e8;
+  /* A subtle color change on hover */
+}
+
+.playlist-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.playlist-host-header {
+  margin: 0;
+  /* Adjust as needed */
+}
+
+.refresh-playlist {
+  /* Additional styles for the button if needed */
+}

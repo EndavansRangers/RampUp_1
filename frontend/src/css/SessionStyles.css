@@ -1,0 +1,59 @@
+:root {
+  --peach: #f7c59f;
+  --space-cadet: #2a324b;
+  --slate-gray: #767b91;
+  --french-gray: #c7ccdb;
+  --alice-blue: #e1e5ee;
+}
+
+.container {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.username-input-container {
+  margin-top: 20px;
+}
+
+.username-input {
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid var(--french-gray);
+  margin-right: 10px;
+}
+
+.submit-button {
+  background-color: var(--peach);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+
+.session-input {
+  padding: 10px;
+  margin: 10px;
+  border-radius: 5px;
+  border: 1px solid var(--french-gray);
+}
+
+.session-info {
+  margin-top: 20px;
+}
+
+.session-id {
+  margin-bottom: 10px;
+}
+
+.join-link {
+  color: var(--peach);
+  text-decoration: none;
+  margin-bottom: 10px;
+  display: block;
+}
+
+.qr-code {
+  margin-top: 10px;
+}

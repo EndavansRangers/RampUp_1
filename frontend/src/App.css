@@ -1,0 +1,355 @@
+@import url('https://fonts.googleapis.com/css2?family=Dosis:wght@400;600&display=swap');
+
+:root {
+  --primary-color: #5F27CD;
+  /* A deep purple for primary actions */
+  --secondary-color: #10AC84;
+  /* A soft teal for secondary actions */
+  --background-color: #f8f8f8;
+  /* A light grey background for a clean look */
+  --text-color: #353b48;
+  /* A dark grey that's softer than black for text */
+  --input-background: #ffffff;
+  /* White background for input fields */
+  --input-border: #dcdde1;
+  /* Light grey border for inputs */
+  --button-text-color: #ffffff;
+  /* White text for buttons for contrast */
+  --button-shadow: rgba(0, 0, 0, 0.15);
+  /* Shadow for depth */
+  --button-accent-color: #2D9CDB;
+  /* A vibrant blue */
+  --button-hover-accent-color: #2F80ED;
+  /* A slightly darker shade for hover effect */
+
+}
+
+body {
+  font-family: 'Dosis', sans-serif;
+  background-color: var(--background-color);
+  color: var(--text-color);
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 20px auto;
+  padding: 0 15px;
+}
+
+button {
+  background-color: var(--button-color);
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: var(--button-hover-color);
+}
+
+header a,
+.title {
+  font-family: 'Dosis', sans-serif;
+  font-weight: 600;
+  /* Dosis semi-bold */
+}
+
+/* Continue to use 'Dosis' for other text elements as required */
+
+
+.btn-primary,
+.create-session-button,
+.join-session-button {
+  background-color: var(--button-accent-color);
+  color: #ffffff;
+  /* Ensure text on the button is white for contrast */
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  font-weight: bold;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
+  /* Space above the button */
+}
+
+.btn-primary:hover,
+.create-session-button:hover,
+.join-session-button:hover {
+  background-color: var(--button-hover-accent-color);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+.btn-danger {
+  background-color: #e74c3c;
+  /* Strong red color for 'danger' actions */
+  color: #ffffff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  font-weight: bold;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+  /* A darker shade for the hover state */
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+.btn-secondary {
+  background-color: #7f8c8d;
+  /* Grey color for 'secondary' actions */
+  color: #ffffff;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  font-weight: bold;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-top: 10px;
+}
+
+.btn-secondary:hover {
+  background-color: #95a5a6;
+  /* A lighter grey for the hover state */
+  transform: translateY(-3px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+}
+
+
+/* Additional button styles */
+.btn-danger {
+  background-color: #e63946;
+  /* Red color for danger actions */
+  color: white;
+}
+
+/* Style for form inputs */
+input[type='text'],
+.session-input {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  width: calc(100% - 22px);
+}
+
+/* Style for list items in the sidebar */
+.liked-songs ul,
+.top-tracks ul {
+  list-style: none;
+}
+
+.liked-songs img,
+.top-tracks img {
+  width: 50px;
+  /* Adjust size as needed */
+  height: 50px;
+  /* Adjust size as needed */
+  border-radius: 50%;
+  /* Circular images */
+}
+
+/* Media queries for responsiveness */
+@media (max-width: 768px) {
+  .username-input {
+    width: calc(100% - 20px);
+  }
+}
+
+.App-header {
+  background-color: var(--space-cadet);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: var(--alice-blue);
+}
+
+.App-link {
+  color: var(--peach);
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.host-view {
+  background: linear-gradient(135deg, #8551a1, #667eea);
+  border-radius: 20px;
+  box-shadow: 0 8px 30px var(--button-shadow);
+  padding: 25px;
+  margin-bottom: 20px;
+  color: white;
+  padding: 20px;
+  font-family: 'Dosis', sans-serif;
+  text-align: center;
+}
+
+/* Style for form inputs */
+input[type='text'] {
+  background: var(--input-background);
+  border: 1px solid var(--input-border);
+  border-radius: 20px;
+  padding: 15px 20px;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 20px;
+}
+
+/* Styles for the Playlist and other panels */
+.playlist,
+.session-info {
+  background: var(--input-background);
+  border-radius: 20px;
+  box-shadow: 0 8px 30px var(--button-shadow);
+  padding: 25px;
+  margin-bottom: 20px;
+}
+
+/* QR Code and Link Style */
+.join-link,
+.qr-code {
+  text-align: center;
+  margin-top: 20px;
+}
+
+/* List of users with vertically aligned buttons */
+.user-list ul {
+  list-style: none;
+  padding: 0;
+  text-align: center;
+  /* Center align if necessary */
+}
+
+.user-list li {
+  margin-bottom: 10px;
+  /* Space between list items */
+  color: white;
+  display: flex;
+  /* Use flexbox for layout */
+  flex-direction: column;
+  /* Stack items vertically */
+  align-items: center;
+  /* Center items horizontally */
+}
+
+.refresh-playlist {
+  font-family: 'Dosis', sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+  margin-bottom: 20px;
+  /* Adjust the value as needed */
+  /* Dosis semi-bold */
+}
+
+/* Style for the button */
+.btn-remove {
+  background: linear-gradient(to right, #6dd5ed, #2193b0);
+  /* Modern gradient from blue to teal */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 20px;
+  /* Rounded borders for a modern look */
+  cursor: pointer;
+  transition: transform 0.3s, box-shadow 0.3s;
+  margin-top: 10px;
+  /* Add space between the username and the button */
+  outline: none;
+  /* Removes the outline to keep the modern aesthetic */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  /* Subtle shadow for depth */
+  text-transform: uppercase;
+  /* Uppercase text for a sleek look */
+  font-weight: 600;
+  /* Dosis semi-bold */
+  display: inline-block;
+  /* To apply padding and border-radius */
+}
+
+
+.btn-remove:hover {
+  background: linear-gradient(to right, #a6beed, #7f7fd5);
+  /* Lighter gradient for hover state */
+  transform: translateY(-2px);
+  /* Subtle lift effect on hover */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  /* Increased shadow on hover for depth */
+}
+
+/* If you have specific classes or elements for the text, you can target them more precisely */
+.host-view h2,
+.host-view p,
+.host-view li {
+  color: white;
+  /* Ensuring that headers, paragraphs, and list items are white */
+}
+
+.user-list-container {
+  display: 'flex';
+  justify-content: 'center';
+  align-items: 'center';
+  text-align: center;
+}
+
+.user-table {
+  margin: 0 auto;
+}
+
+.guest-count {
+  color: white;
+  /* This will make the guest count text white */
+}
+
+.sub-title {
+  color: white;
+  /* This will make the sub-title text white */
+}
+
+/* Make sure the <a> tags within .host-view are also white if they aren't buttons */
+.host-view a {
+  color: white;
+  /* This will make the anchor text white */
+  text-decoration: none;
+  /* Optional: removes underline from links */
+}
+
+.title-send {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title-send h2 {
+  margin: 0 auto;
+}
+
+.title-send .send-song {
+  margin-left: auto;
+}
