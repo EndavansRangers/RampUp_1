@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  # Base de datos PostgreSQL
+  database:
+    image: postgres:15-alpine
+    container_name: tunefy-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tunefy
+      POSTGRES_USER: tunefy_user
+      POSTGRES_PASSWORD: tunefy_pass
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/database_setup.sql:/docker-entrypoint-initdb.d/01-database_setup.sql
+      - ./backend/add_session_id.sql:/docker-entrypoint-initdb.d/02-add_session_id.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - tunefy-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tunefy_user -d tunefy"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: tunefy-backend
+    restart: unless-stopped
+    environment:
+      # Variables de base de datos
+      PGHOST: database
+      PGUSER: tunefy_user
+      PGDATABASE: tunefy
+      PGPASSWORD: tunefy_pass
+      PGPASS: tunefy_pass
+      PGPORT: 5432
+      PGDB: tunefy
+      
+      # Variables del servidor
+      PORT: 3001
+      NODE_ENV: production
+      
+      # URLs
+      REACT_server_FRONTEND_URL: localhost
+      
+      # APIs externas
+      GOOGLE_KEY: "AIzaSyAAL1GtGXpN3NEgcbRUqQvEzNaRMk740uM"
+      AI21_TOKEN: "mJ4SfZVGu3Yn1MtQqpbNt1NpzhvbbE6i"
+      
+      # Seguridad
+      SESSION_SECRET: tunefy_session_secret_docker_2025
+    ports:
+      - "3001:3001"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - tunefy-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - REACT_APP_BACKEND_URL=http://localhost:3001
+        - REACT_APP_FRONTEND_URL=http://localhost
+        - REACT_APP_GOOGLE_KEY=AIzaSyAAL1GtGXpN3NEgcbRUqQvEzNaRMk740uM
+    container_name: tunefy-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - tunefy-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  tunefy-network:
+    driver: bridge
