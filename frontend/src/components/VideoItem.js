@@ -37,11 +37,18 @@ function VideoItem({ title, videoId }) {
         throw new Error("Could not determine artist and song name");
       }
       
+      // Get session ID from localStorage
+      const sessionId = localStorage.getItem("sessionId");
+      if (!sessionId) {
+        throw new Error("No session found. Please join or create a session first.");
+      }
+      
       // Send the song to the backend
       const response = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/add-song`, {
-        user_id: "guest", // Changed from "null" to "guest"
+        user_id: "guest",
         song_name: songName,
         artist_name: artist,
+        session_id: sessionId, // Add session_id
       });
 
       if (response.status === 201) {
