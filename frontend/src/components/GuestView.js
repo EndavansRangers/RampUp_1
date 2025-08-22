@@ -168,24 +168,48 @@ function GuestView() {
 
   const handleSearch = (search) => {
     if (search !== "" && isApiReady) {
-      const request = window.gapi.client.youtube.search.list({
-        part: "snippet",
-        type: "video",
-        q: encodeURIComponent(search).replace(/%20/g, "+") + " karaoke",
-        maxResults: 3,
-        order: "relevance",
-      });
+      try {
+        console.log(`API is ready. Performing search for: ${search}`);
+        const request = window.gapi.client.youtube.search.list({
+          part: "snippet",
+          type: "video",
+          q: encodeURIComponent(search).replace(/%20/g, "+") + " karaoke",
+          maxResults: 3,
+          order: "relevance",
+        });
 
-      request.execute((response) => {
-        const items = response.result.items;
-        console.log(items);
-        setResults(
-          items.map((item) => ({
-            title: item.snippet.title,
-            videoId: item.id.videoId,
-          }))
-        );
-      });
+        request.execute((response) => {
+          const items = response.result.items;
+          console.log(`Search completed. Results:`, items);
+          if (items.length === 0) {
+            console.log("No results found. Attempting a simplified search.");
+            // Perform a simplified search without the "karaoke" term
+            const simplifiedSearch = search.replace(/karaoke/gi, "").replace(/unknown artist/gi, "").trim();
+            if (simplifiedSearch !== search) {
+              // Only perform a simplified search if it's different from the original search
+              handleSearch(simplifiedSearch);
+            }
+          } else {
+            setResults(
+              items.map((item) => ({
+                title: item.snippet.title,
+                videoId: item.id.videoId,
+              }))
+            );
+          }
+        });
+      } catch (error) {
+        console.error('Error performing search:', error);
+        alert('Error searching for videos. Please try again.');
+      }
+    } else {
+      if (search === "") {
+        console.log("Search term is empty. No search performed.");
+      }
+      if (!isApiReady) {
+        console.log("API is not ready. Search cannot be performed.");
+        alert('YouTube API is not ready. Please wait a moment and try again.');
+      }
     }
   }
   const resetVideoHeight = () => {
