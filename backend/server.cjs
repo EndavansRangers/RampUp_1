@@ -28,6 +28,32 @@ const pool = new Pool({
   port: 5432,
 });
 
+// Health check endpoint
+server.get("/health", async (req, res) => {
+  try {
+    // Test database connection
+    const client = await pool.connect();
+    await client.query('SELECT 1');
+    client.release();
+    
+    res.status(200).json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      service: "tunefy-backend",
+      database: "connected"
+    });
+  } catch (error) {
+    console.error("Health check failed:", error);
+    res.status(503).json({
+      status: "unhealthy",
+      timestamp: new Date().toISOString(),
+      service: "tunefy-backend",
+      database: "disconnected",
+      error: error.message
+    });
+  }
+});
+
 let sessions = {};
 function generateSessionId() {
   return Math.random().toString(36).substring(2, 15);
