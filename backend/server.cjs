@@ -151,13 +151,13 @@ server.post("/playlist", async (req, res) => {
   }
 });
 server.post("/add-song", async (req, res) => {
-  const { user_id, song_name, artist_name } = req.body;
+  const { user_id, song_name, artist_name, session_id } = req.body;
   
   // Validate that required fields are present and not null/empty
-  if (!song_name || !artist_name) {
+  if (!song_name || !artist_name || !session_id) {
     return res.status(400).json({ 
-      error: "song_name and artist_name are required and cannot be empty",
-      received: { user_id, song_name, artist_name }
+      error: "song_name, artist_name, and session_id are required and cannot be empty",
+      received: { user_id, song_name, artist_name, session_id }
     });
   }
   
@@ -167,10 +167,10 @@ server.post("/add-song", async (req, res) => {
     // Begin transaction
     await client.query("BEGIN");
 
-    // Insert the new song into the merged_songs table
+    // Insert the new song into the merged_songs table with session_id
     const insertResult = await client.query(
-      "INSERT INTO merged_songs (user_id, song_name, artist_name, popularity) VALUES ($1, $2, $3, 99) RETURNING *",
-      [user_id || 'guest', song_name.trim(), artist_name.trim()]
+      "INSERT INTO merged_songs (user_id, song_name, artist_name, popularity, session_id) VALUES ($1, $2, $3, 99, $4) RETURNING *",
+      [user_id || 'guest', song_name.trim(), artist_name.trim(), session_id]
     );
 
     // Commit transaction
@@ -231,29 +231,37 @@ server.post("/add-song", async (req, res) => {
 // });
 
 server.post("/merged-songs", async (req, res) => {
-  const { userId, songs } = req.body;
+  const { userId, songs, sessionId } = req.body;
+  
+  if (!sessionId) {
+    return res.status(400).json({ error: "Session ID is required" });
+  }
+  
   const client = await pool.connect();
 
   try {
     // Begin transaction
     await client.query("BEGIN");
 
-    // Delete existing entries for the user in the merged_songs table
-    await client.query("DELETE FROM merged_songs WHERE user_id = $1", [userId]);
+    // Delete existing entries for the user in the specific session
+    await client.query(
+      "DELETE FROM merged_songs WHERE user_id = $1 AND session_id = $2", 
+      [userId, sessionId]
+    );
 
-    // Insert the new songs for the user into the merged_songs table, ensuring uniqueness by song_name
+    // Insert the new songs for the user into the merged_songs table for this session
     for (const song of songs) {
-      // Check if the song already exists in merged_songs
+      // Check if the song already exists in this session
       const songExists = await client.query(
-        "SELECT 1 FROM merged_songs WHERE user_id = $1 AND song_name = $2",
-        [userId, song.name]
+        "SELECT 1 FROM merged_songs WHERE user_id = $1 AND song_name = $2 AND session_id = $3",
+        [userId, song.name, sessionId]
       );
 
       // If the song does not exist, insert it
       if (songExists.rowCount === 0) {
         await client.query(
-          "INSERT INTO merged_songs (user_id, song_name, artist_name, popularity) VALUES ($1, $2, $3, $4)",
-          [userId, song.name, song.artist, song.popularity]
+          "INSERT INTO merged_songs (user_id, song_name, artist_name, popularity, session_id) VALUES ($1, $2, $3, $4, $5)",
+          [userId, song.name, song.artist, song.popularity, sessionId]
         );
       }
     }
@@ -261,7 +269,7 @@ server.post("/merged-songs", async (req, res) => {
     // Commit transaction
     await client.query("COMMIT");
 
-    // Respond with the top 20 songs by popularity
+    // Respond with the top 20 songs by popularity for this session
     const sortedSongs = songs.sort((a, b) => b.popularity - a.popularity);
     const topSongs = sortedSongs.slice(0, 20);
     res.json(topSongs);
@@ -275,28 +283,33 @@ server.post("/merged-songs", async (req, res) => {
   }
 });
 
-const cache = {
-  playlist: { timestamp: 0, data: null },
-  votes: { timestamp: 0, data: null },
-};
+const cache = {};
 
 const CACHE_DURATION = 3 * 1000; // 3 seconds
 
 server.get("/playlist", async (req, res) => {
-  const currentTime = Date.now();
+  const sessionId = req.query.sessionId;
+  
+  if (!sessionId) {
+    return res.status(400).json({ error: "Session ID is required" });
+  }
 
-  // Check if the cache is valid
-  if (cache.playlist.timestamp > currentTime - CACHE_DURATION) {
-    return res.json(cache.playlist.data); // Send cached data
+  const currentTime = Date.now();
+  const cacheKey = `playlist_${sessionId}`;
+
+  // Check if the cache is valid for this specific session
+  if (cache[cacheKey] && cache[cacheKey].timestamp > currentTime - CACHE_DURATION) {
+    return res.json(cache[cacheKey].data); // Send cached data
   }
 
   // Cache is not valid, fetch new data from the database
   const client = await pool.connect();
   try {
     const result = await client.query(
-      "SELECT * FROM merged_songs ORDER BY popularity DESC LIMIT 10"
+      "SELECT * FROM merged_songs WHERE session_id = $1 ORDER BY popularity DESC, votes DESC LIMIT 10",
+      [sessionId]
     );
-    cache.playlist = { timestamp: currentTime, data: result.rows }; // Update cache
+    cache[cacheKey] = { timestamp: currentTime, data: result.rows }; // Update cache
     res.json(result.rows); // Send new data
   } catch (err) {
     console.error("Error in /playlist endpoint:", err);
@@ -342,18 +355,28 @@ server.delete('/songs/:id', async (req, res) => {
   }
 });
 server.get("/votes", async (req, res) => {
-  const currentTime = Date.now();
+  const sessionId = req.query.sessionId;
+  
+  if (!sessionId) {
+    return res.status(400).json({ error: "Session ID is required" });
+  }
 
-  // Check if the cache is valid
-  if (cache.votes.timestamp > currentTime - CACHE_DURATION) {
-    return res.json(cache.votes.data); // Send cached data
+  const currentTime = Date.now();
+  const cacheKey = `votes_${sessionId}`;
+
+  // Check if the cache is valid for this specific session
+  if (cache[cacheKey] && cache[cacheKey].timestamp > currentTime - CACHE_DURATION) {
+    return res.json(cache[cacheKey].data); // Send cached data
   }
 
   // Cache is not valid, fetch new data from the database
   const client = await pool.connect();
   try {
-    const results = await client.query("SELECT id, votes FROM merged_songs");
-    cache.votes = { timestamp: currentTime, data: results.rows }; // Update cache
+    const results = await client.query(
+      "SELECT id, votes FROM merged_songs WHERE session_id = $1", 
+      [sessionId]
+    );
+    cache[cacheKey] = { timestamp: currentTime, data: results.rows }; // Update cache
     res.json(results.rows); // Send new data
   } catch (error) {
     console.error("Error in /votes endpoint:", error);
