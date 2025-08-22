@@ -151,7 +151,16 @@ server.post("/playlist", async (req, res) => {
   }
 });
 server.post("/add-song", async (req, res) => {
-  const { user_id, song_name, artist_name } = req.body; // Ensure you are receiving all three parameters
+  const { user_id, song_name, artist_name } = req.body;
+  
+  // Validate that required fields are present and not null/empty
+  if (!song_name || !artist_name) {
+    return res.status(400).json({ 
+      error: "song_name and artist_name are required and cannot be empty",
+      received: { user_id, song_name, artist_name }
+    });
+  }
+  
   const client = await pool.connect();
 
   try {
@@ -159,10 +168,9 @@ server.post("/add-song", async (req, res) => {
     await client.query("BEGIN");
 
     // Insert the new song into the merged_songs table
-    // Make sure to include placeholders for all three parameters ($1, $2, $3)
     const insertResult = await client.query(
       "INSERT INTO merged_songs (user_id, song_name, artist_name, popularity) VALUES ($1, $2, $3, 99) RETURNING *",
-      [user_id, song_name, artist_name] // Provide all three parameters here
+      [user_id || 'guest', song_name.trim(), artist_name.trim()]
     );
 
     // Commit transaction
@@ -173,8 +181,11 @@ server.post("/add-song", async (req, res) => {
   } catch (err) {
     // If an error is caught, rollback the transaction
     await client.query("ROLLBACK");
-    console.error(err);
-    res.status(500).send("Internal server error");
+    console.error("Error in /add-song:", err);
+    res.status(500).json({ 
+      error: "Internal server error", 
+      details: err.message 
+    });
   } finally {
     client.release();
   }
@@ -469,28 +480,45 @@ ${userInput}
     });
 
     const data = await response.json();
-    if (data.completions[0].data.text) {
-      console.log('Completions available: ', data.completions[0].data.text);
-    } else {
-      console.log('No completions available in the data');
+    
+    // Check if the response has the expected structure
+    if (!data || !data.completions || !data.completions[0] || !data.completions[0].data || !data.completions[0].data.text) {
+      console.log('Invalid response structure from AI21:', data);
+      throw new Error('Invalid response structure from AI21 API');
     }
+    
+    console.log('Completions available: ', data.completions[0].data.text);
+    
     // Extract the data content
     const content = data.completions[0].data.text.trim();
 
-    console.log("Artist: <artist>, Song Name: <song>");
+    console.log("Extracted content:", content);
     // Assuming the response format is "Artist: <artist>, Song Name: <song>"
     const match = content.match(/Artist: (.*?), Song Name: (.*)/);
-    console.log("Artist:", match[1].trim(), ", Song Name: ", match[2].trim());
-    if (match) {
+    
+    if (match && match[1] && match[2]) {
+      console.log("Artist:", match[1].trim(), ", Song Name: ", match[2].trim());
       return {
         artist: match[1].trim(),
         songName: match[2].trim(),
       };
     } else {
-      throw new Error('Could not extract song and artist names.');
+      console.log('Could not match expected format, trying alternative parsing...');
+      // Try alternative parsing methods
+      if (content.includes(':') && content.includes('-')) {
+        // Try format "Artist - Song"
+        const parts = content.split('-');
+        if (parts.length >= 2) {
+          return {
+            artist: parts[0].trim(),
+            songName: parts.slice(1).join('-').trim(),
+          };
+        }
+      }
+      throw new Error('Could not extract song and artist names from: ' + content);
     }
   } catch (error) {
-    console.error(error);
+    console.error('Error in extractSongAndArtist:', error);
     return { artist: null, songName: null }; // Return an object with null values when an error occurs
   }
 }
