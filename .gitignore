@@ -4,3 +4,8 @@ react-karaoke-challenge
 react-karaoke-challenge-backend
 .DS_Store
 .env
+
+# Vagrant
+infra/Vagrantfile
+infra/*.sh
+.vagrant/
