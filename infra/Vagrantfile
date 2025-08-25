@@ -1,0 +1,104 @@
+# infra/Vagrantfile
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/jammy64"
+
+  # ---------- VM-1: TeamCity (CI) ----------
+  config.vm.define "teamcity" do |tc|
+    tc.vm.hostname = "teamcity.local"
+    tc.vm.network "private_network", ip: "192.168.56.10"
+    tc.vm.provider "virtualbox" do |vb|
+      vb.memory = 6144
+      vb.cpus = 2
+    end
+    tc.vm.provision "shell", inline: <<-SHELL
+      set -e
+      apt-get update -y
+      apt-get install -y openjdk-17-jre wget unzip ca-certificates curl gnupg
+
+      # Instalar Docker para que el agente pueda construir imágenes
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+      apt-get update -y
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      usermod -aG docker vagrant
+
+      # TeamCity Server
+      useradd -m teamcity || true
+      cd /opt
+      wget -q https://download.jetbrains.com/teamcity/TeamCity-2024.03.4.tar.gz -O teamcity.tar.gz
+      tar xzf teamcity.tar.gz
+      chown -R teamcity:teamcity TeamCity
+      cat >/etc/systemd/system/teamcity.service <<EOF
+[Unit]
+Description=TeamCity Server
+After=network.target
+[Service]
+Type=simple
+User=teamcity
+ExecStart=/opt/TeamCity/bin/runAll.sh start
+ExecStop=/opt/TeamCity/bin/runAll.sh stop
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target
+EOF
+      systemctl daemon-reload
+      systemctl enable teamcity
+      systemctl start teamcity
+    SHELL
+  end
+
+  # ---------- VM-2: Octopus Server ----------
+  config.vm.define "octopus" do |oct|
+    oct.vm.hostname = "octopus.local"
+    oct.vm.network "private_network", ip: "192.168.56.11"
+    oct.vm.provider "virtualbox" do |vb|
+      vb.memory = 6144
+      vb.cpus = 2
+    end
+    oct.vm.provision "shell", inline: <<-SHELL
+      set -e
+      apt-get update -y
+      apt-get install -y curl gnupg apt-transport-https
+      curl -sL https://apt.octopus.com/public.key | gpg --dearmor | tee /usr/share/keyrings/octopus.gpg > /dev/null
+      echo "deb [signed-by=/usr/share/keyrings/octopus.gpg] https://apt.octopus.com/ stable main" > /etc/apt/sources.list.d/octopus.list
+      apt-get update -y
+      apt-get install -y octopusdeploy
+      systemctl enable octopus
+      systemctl start octopus
+    SHELL
+  end
+
+  # ---------- VM-3: App Host ----------
+  config.vm.define "apphost" do |app|
+    app.vm.hostname = "apphost.local"
+    app.vm.network "private_network", ip: "192.168.56.12"
+    app.vm.synced_folder "../", "/srv/app", disabled: false  
+    app.vm.provider "virtualbox" do |vb|
+      vb.memory = 4096
+      vb.cpus = 2
+    end
+    app.vm.provision "shell", inline: <<-SHELL
+      set -e
+      apt-get update -y
+      apt-get install -y ca-certificates curl gnupg
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      chmod a+r /etc/apt/keyrings/docker.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+      apt-get update -y
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+      # Octopus Tentacle
+      curl -sL https://apt.octopus.com/public.key | gpg --dearmor | tee /usr/share/keyrings/octopus.gpg > /dev/null
+      echo "deb [signed-by=/usr/share/keyrings/octopus.gpg] https://apt.octopus.com/ stable main" > /etc/apt/sources.list.d/octopus.list
+      apt-get update -y
+      apt-get install -y tentacle
+      systemctl enable tentacle
+      systemctl start tentacle
+
+      mkdir -p /srv/app/deploy
+    SHELL
+  end
+end
