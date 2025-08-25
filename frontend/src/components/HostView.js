@@ -38,8 +38,13 @@ function HostView() {
   // Function to fetch the latest votes and update the songs prop
   const fetchVotesAndUpdateSongs = async () => {
     try {
+      if (!sessionId) {
+        console.log("No session ID available for fetching votes");
+        return;
+      }
+      
       const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/votes`
+        `${process.env.REACT_APP_BACKEND_URL}/votes?sessionId=${sessionId}`
       );
       if (!response.ok) {
         throw new Error("Failed to fetch votes");
@@ -122,11 +127,11 @@ function HostView() {
   }, [fetchKey]); // Depend on fetchKey
 
   useEffect(() => {
-    if (isPlaylistGenerated) {
+    if (isPlaylistGenerated && sessionId) {
       const fetchVotes = async () => {
         try {
           const response = await axios.get(
-            `${process.env.REACT_APP_BACKEND_URL}/votes`
+            `${process.env.REACT_APP_BACKEND_URL}/votes?sessionId=${sessionId}`
           );
           setVotes(response.data.votes);
         } catch (error) {
@@ -314,10 +319,15 @@ function HostView() {
 
   const fetchPlaylist = async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/playlist`);
+      if (!sessionId) {
+        console.log("No session ID available for fetching playlist");
+        return;
+      }
+      
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/playlist?sessionId=${sessionId}`);
       const data = await response.json();
       setSongs(data.sort((a, b) => b.votes - a.votes));
-      console.log("Playlist fetched successfully");
+      console.log("Playlist fetched successfully for session:", sessionId);
       if (data && data.length > 0) {
         setIsPlaylistGenerated(true);
       }

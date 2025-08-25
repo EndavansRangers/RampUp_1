@@ -7,8 +7,14 @@ const Playlist = ({ onVote }) => {
   // Function to fetch the latest votes
   const fetchVotes = async () => {
     try {
+      const sessionId = localStorage.getItem("sessionId");
+      if (!sessionId) {
+        console.log("No session ID available for fetching votes");
+        return;
+      }
+      
       const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/votes`
+        `${process.env.REACT_APP_BACKEND_URL}/votes?sessionId=${sessionId}`
       );
       if (!response.ok) {
         throw new Error("Failed to fetch votes");
@@ -36,7 +42,13 @@ const Playlist = ({ onVote }) => {
   }, []);
 
   useEffect(() => {
-    fetch(`${process.env.REACT_APP_BACKEND_URL}/playlist`)
+    const sessionId = localStorage.getItem("sessionId");
+    if (!sessionId) {
+      console.log("No session ID available for fetching playlist");
+      return;
+    }
+    
+    fetch(`${process.env.REACT_APP_BACKEND_URL}/playlist?sessionId=${sessionId}`)
       .then((response) => response.json())
       .then((data) => {
         setSongs(data);
