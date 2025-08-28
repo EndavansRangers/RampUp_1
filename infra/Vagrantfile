@@ -78,48 +78,44 @@ Vagrant.configure("2") do |config|
       echo ">>> Para iniciar Octopus Server usa:"
       echo "docker network create octo-net || true"
       echo "docker run -d --name octo-sql --restart unless-stopped --network octo-net \\
-        -e \\"ACCEPT_EULA=Y\\" -e \\"MSSQL_SA_PASSWORD=TU_SA_PASSWORD\\" \\
+        -e \\"ACCEPT_EULA=Y\\" -e \\"MSSQL_SA_PASSWORD=S3cure!Passw0rd_2025\\" \\
         -p 1433:1433 -v /opt/octopus/sql:/var/opt/mssql \\
         mcr.microsoft.com/mssql/server:2022-latest"
       echo "docker run -d --name octopus-server --restart unless-stopped --network octo-net \\
         -p 8080:8080 -v /opt/octopus/server:/Octopus \\
         -e ACCEPT_EULA=Y \\
-        -e DB_CONNECTION_STRING=\\"Server=octo-sql,1433;Database=Octopus;User Id=sa;Password=TU_SA_PASSWORD;TrustServerCertificate=True;\\" \\
+        -e DB_CONNECTION_STRING=\\"Server=octo-sql,1433;Database=Octopus;User Id=sa;Password=S3cure!Passw0rd_2025;TrustServerCertificate=True;\\" \\
         octopusdeploy/octopusserver:latest"
     SHELL
   end
 
-  # ---------- VM-3: App Host ----------
-  config.vm.define "apphost" do |app|
-    app.vm.hostname = "apphost.local"
-    app.vm.network "private_network", ip: "192.168.56.12"
-    app.vm.synced_folder "../", "/srv/app", disabled: false
-    app.vm.provider "virtualbox" do |vb|
-      vb.memory = 4096
-      vb.cpus = 2
-    end
-    app.vm.provision "shell", inline: <<-SHELL
-      set -e
-      apt-get update -y
-      apt-get install -y ca-certificates curl gnupg
-      install -m 0755 -d /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-      chmod a+r /etc/apt/keyrings/docker.gpg
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-        https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" \
-        > /etc/apt/sources.list.d/docker.list
-      apt-get update -y
-      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-      # Octopus Tentacle
-      curl -sL https://apt.octopus.com/public.key | gpg --dearmor | tee /usr/share/keyrings/octopus.gpg > /dev/null
-      echo "deb [signed-by=/usr/share/keyrings/octopus.gpg] https://apt.octopus.com/ stable main" > /etc/apt/sources.list.d/octopus.list
-      apt-get update -y
-      apt-get install -y tentacle
-      systemctl enable tentacle
-      systemctl start tentacle
-
-      mkdir -p /srv/app/deploy
-    SHELL
+# ---------- VM-3: App Host ----------
+config.vm.define "apphost" do |app|
+  app.vm.hostname = "apphost.local"
+  app.vm.network "private_network", ip: "192.168.56.12"
+  app.vm.synced_folder "../", "/srv/app", disabled: false
+  app.vm.provider "virtualbox" do |vb|
+    vb.memory = 4096
+    vb.cpus = 2
   end
+  app.vm.provision "shell", inline: <<-SHELL
+    set -e
+    apt-get update -y
+    apt-get install -y ca-certificates curl gnupg
+    install -m 0755 -d /etc/apt/keyrings
+    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+    apt-get update -y
+    apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+    # Octopus Tentacle
+    curl -sL https://apt.octopus.com/public.key | gpg --dearmor | tee /usr/share/keyrings/octopus.gpg > /dev/null
+    echo "deb [signed-by=/usr/share/keyrings/octopus.gpg] https://apt.octopus.com/ stable main" > /etc/apt/sources.list.d/octopus.list
+    apt-get update -y
+    apt-get install -y tentacle
+
+    mkdir -p /srv/app/deploy
+  SHELL
+end
 end
