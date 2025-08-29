@@ -67,6 +67,7 @@ npm install
 npm start
 ```
 
+
 The application will open in your default web browser at `http://192.168.1.6:3000`.
 
 ### Usage
