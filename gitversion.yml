@@ -1,0 +1,26 @@
+# gitversion.yml (modo GitFlow, ContinuousDeployment)
+mode: ContinuousDeployment
+next-version: 1.0.0
+
+branches:
+  master:
+    regex: ^master$
+    tag: ''
+  main:
+    regex: ^main$
+    tag: ''
+  develop:
+    regex: ^develop$
+    tag: 'alpha'
+  release:
+    regex: ^releases?[/-]
+    tag: 'rc'
+  feature:
+    regex: ^features?[/-]
+    tag: 'beta'
+  hotfix:
+    regex: ^hotfix(es)?[/-]
+    tag: 'hotfix'
+
+ignore:
+  sha: []
