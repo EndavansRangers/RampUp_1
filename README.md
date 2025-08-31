@@ -33,6 +33,7 @@ To get the application running, you'll need to set up both the frontend and back
 npm install
 ```
 
+
 3. Set up the PostgreSQL database using the provided `init.sql` script in the `database/scripts` directory.
 4. Create a `.env` file in the `backend` directory with the following environment variables:
 
