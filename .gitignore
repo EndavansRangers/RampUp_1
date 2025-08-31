@@ -9,3 +9,5 @@ react-karaoke-challenge-backend
 infra/Vagrantfile
 infra/*.sh
 .vagrant/
+
+deploy/
