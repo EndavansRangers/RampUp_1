@@ -6,6 +6,17 @@ FROM node:18-alpine as build
 # Crear directorio de trabajo
 WORKDIR /app
 
+# Recibir args desde el build
+ARG REACT_APP_BACKEND_URL
+ARG REACT_APP_FRONTEND_URL
+ARG REACT_APP_GOOGLE_KEY
+
+# Disponibles para npm build
+ENV REACT_APP_BACKEND_URL=$REACT_APP_BACKEND_URL \
+    REACT_APP_FRONTEND_URL=$REACT_APP_FRONTEND_URL \
+    REACT_APP_GOOGLE_KEY=$REACT_APP_GOOGLE_KEY
+
+
 # Copiar package.json y package-lock.json
 COPY package*.json ./
 
