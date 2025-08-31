@@ -21,11 +21,11 @@ server.use(
 );
 
 const pool = new Pool({
-  user: process.env.PGUSER,
-  host: process.env.PGHOST,
-  database: process.env.PGDB,
-  password: process.env.PGPASS,
-  port: 5432,
+  user:     process.env.PGUSER,
+  host:     process.env.PGHOST,
+  database: process.env.PGDATABASE || process.env.PGDB,
+  password: process.env.PGPASSWORD || process.env.PGPASS,
+  port:     Number(process.env.PGPORT || 5432),
 });
 
 // Health check endpoint
