@@ -12,7 +12,7 @@ branches:
     regex: ^develop$
     tag: 'alpha'
   release:
-    regex: ^releases?[/-]
+    regex: ^release?[/-]
     tag: 'rc'
   feature:
     regex: ^features?[/-]
