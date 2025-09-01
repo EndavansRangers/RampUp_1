@@ -29,6 +29,7 @@ To get the application running, you'll need to set up both the frontend and back
 1. Navigate to the `backend` directory.
 2. Install the required npm packages:
 
+
 ```sh
 npm install
 ```
