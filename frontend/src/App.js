@@ -15,7 +15,7 @@ function App() {
         <div className="container">
           <header className="text-center my-4">
             <h1>
-              <a href="/">Tunefy 2</a>
+              <a href="/">Tunefy</a>
             </h1>
           </header>
           <Routes>
