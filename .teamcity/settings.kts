@@ -167,19 +167,15 @@ object Tunefy : BuildType({
                 VER="%env.DOCKER_TAG%"
                 FE="${'$'}CHECKOUT/frontend"
                 
-                # 1) Detectar artefactos del build (CRA=build, Vite=dist, Next=out)
                 ART=""
                 for d in build dist out; do
                   if [[ -d "${'$'}FE/${'$'}d" ]]; then ART="${'$'}d"; break; fi
                 done
                 [[ -n "${'$'}ART" ]] || { echo "No se encontraron artefactos (build/dist/out) en ${'$'}FE"; exit 2; }
-                echo "Artefactos detectados: ${'$'}ART"
                 
-                # 2) Preparar contexto temporal con solo los artefactos
                 CTX="${'$'}(mktemp -d)"
                 cp -R "${'$'}FE/${'$'}ART" "${'$'}CTX/${'$'}ART"
                 
-                # 3) Dockerfile minimal para Nginx
                 cat > "${'$'}CTX/Dockerfile" <<'EOF'
                 FROM nginx:alpine
                 ARG ART=build
@@ -187,10 +183,8 @@ object Tunefy : BuildType({
                 RUN printf 'server {\n  listen 80;\n  server_name _;\n  root /usr/share/nginx/html;\n  location / { try_files ${'$'}${'$'}uri /index.html; }\n}\n' > /etc/nginx/conf.d/default.conf
                 EOF
                 
-                # 4) Build & Push (si falla el build, no hace push)
                 docker build -t "${'$'}REG/tunefy/frontend:${'$'}VER" --build-arg ART="${'$'}ART" "${'$'}CTX"
                 docker push "${'$'}REG/tunefy/frontend:${'$'}VER"
-                
                 echo "Frontend publicado como ${'$'}REG/tunefy/frontend:${'$'}VER"
             """.trimIndent()
         }
