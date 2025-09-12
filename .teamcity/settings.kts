@@ -47,9 +47,11 @@ object Tunefy : BuildType({
             name = "GitVersion"
             id = "GitVersion"
             scriptContent = """
-                -lc 'set -euo pipefail
-                docker run --rm -v "%teamcity.build.checkoutDir%:/repo" gittools/gitversion:5.12.0 /repo /output buildserver
-                echo "##teamcity[buildNumber '\''%GitVersion.SemVer%'\'' ]"'
+                set -eu
+                docker run --rm \
+                  -v "%teamcity.build.checkoutDir%:/repo" \
+                  gittools/gitversion:5.12.0 /repo /output buildserver
+                echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
             """.trimIndent()
         }
         script {
