@@ -54,5 +54,21 @@ object Tunefy : BuildType({
                 echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
             """.trimIndent()
         }
+        script {
+            name = "Backend: deps"
+            id = "Backend_deps"
+            scriptContent = """
+                CHECKOUT="%teamcity.build.checkoutDir%"
+                HOST_BACKEND="${'$'}CHECKOUT/backend"
+                
+                # Instala deps y corre tests en contenedor Node
+                tar -C "${'$'}HOST_BACKEND" -cf - . \
+                | docker run --rm -i -w /app -e CI=true node:18-alpine sh -lc '
+                  set -eu
+                  tar -xf - -C /app
+                  npm ci
+                '
+            """.trimIndent()
+        }
     }
 })
