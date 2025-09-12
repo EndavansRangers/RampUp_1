@@ -119,5 +119,17 @@ object Tunefy : BuildType({
                 echo "##teamcity[buildStatus text='Pushed frontend:${'$'}VER']"
             """.trimIndent()
         }
+        script {
+            name = "borrar"
+            id = "borrar"
+            scriptContent = """
+                set -eu
+                docker run --rm \
+                  -v "%teamcity.build.checkoutDir%:/repo" \
+                  gittools/gitversion:5.12.0 /repo /output buildserver
+                
+                echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
+            """.trimIndent()
+        }
     }
 })
