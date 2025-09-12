@@ -1,5 +1,6 @@
 import jetbrains.buildServer.configs.kotlin.*
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
+import jetbrains.buildServer.configs.kotlin.triggers.vcs
 
 /*
 The settings script is an entry point for defining a TeamCity
@@ -35,6 +36,7 @@ object Tunefy : BuildType({
 
     params {
         param("env.DOCKER_REGISTRY", "10.20.0.150:5000")
+        param("env.GIT_BRANCH", "develop")
         param("GitVersion.SemVer", "1.0.0")
     }
 
@@ -46,12 +48,42 @@ object Tunefy : BuildType({
         script {
             name = "GitVersion"
             id = "GitVersion"
+            enabled = false
+            scriptContent = """
+                BR="${'$'}{env.GIT_BRANCH:-}"
+                [ -n "${'$'}BR" ] && git -C "${'$'}CLONE" checkout "${'$'}BR" || true
+            """.trimIndent()
+        }
+        script {
+            name = "borrar"
+            id = "borrar"
             scriptContent = """
                 set -eu
-                docker run --rm \
-                  -v "%teamcity.build.checkoutDir%:/repo" \
-                  gittools/gitversion:5.12.0 /repo /output buildserver
+                
+                CHECKOUT="%teamcity.build.checkoutDir%"
+                # Sanity: asegúrate de que en el workspace hay .git
+                ls -la "${'$'}CHECKOUT/.git" || { echo "Falta .git en ${'$'}CHECKOUT"; exit 2; }
+                
+                # Empaquetamos el repo y lo "inyectamos" por stdin al contenedor
+                tar -C "${'$'}CHECKOUT" -cf - . \
+                | docker run --rm -i mcr.microsoft.com/dotnet/sdk:8.0-alpine sh -lc '
+                    set -e
+                    apk add --no-cache git >/dev/null
+                    mkdir -p /repo
+                    tar -xf - -C /repo
+                
+                    # Comprobamos que .git existe dentro del contenedor
+                    ls -la /repo/.git || { echo "No hay .git dentro del contenedor"; exit 2; }
+                
+                    git config --global --add safe.directory /repo
+                    dotnet tool install -g GitVersion.Tool --version 5.12.0 >/dev/null
+                    ~/.dotnet/tools/dotnet-gitversion /repo /output buildserver
+                '
+                
+                # Publica el build number/variables para los siguientes steps
                 echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
+                echo "##teamcity[setParameter name='env.BUILD_VERSION' value='%GitVersion.SemVer%']"
+                echo "##teamcity[setParameter name='env.DOCKER_TAG' value='%GitVersion.SemVer%']"
             """.trimIndent()
         }
         script {
@@ -124,6 +156,14 @@ object Tunefy : BuildType({
                 docker push "${'$'}REG/tunefy/frontend:${'$'}VER"
                 echo "##teamcity[buildStatus text='Pushed frontend:${'$'}VER']"
             """.trimIndent()
+        }
+    }
+
+    triggers {
+        vcs {
+            triggerRules = "+:*"
+            branchFilter = ""
+            enableQueueOptimization = false
         }
     }
 })
