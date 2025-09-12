@@ -45,15 +45,6 @@ object Tunefy : BuildType({
 
     steps {
         script {
-            name = "GitVersion"
-            id = "GitVersion"
-            enabled = false
-            scriptContent = """
-                BR="${'$'}{env.GIT_BRANCH:-}"
-                [ -n "${'$'}BR" ] && git -C "${'$'}CLONE" checkout "${'$'}BR" || true
-            """.trimIndent()
-        }
-        script {
             name = "borrar"
             id = "borrar"
             scriptContent = """
