@@ -32,6 +32,10 @@ project {
 object Tunefy : BuildType({
     name = "Tunefy"
 
+    params {
+        param("env.DOCKER_REGISTRY", "10.20.0.150:5000")
+    }
+
     vcs {
         root(DslContext.settingsRoot)
     }
