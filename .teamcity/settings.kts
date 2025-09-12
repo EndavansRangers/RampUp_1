@@ -160,19 +160,26 @@ object Tunefy : BuildType({
             name = "Frontend: push"
             id = "Frontend_push"
             scriptContent = """
-                set -eu pipefail
+                set -eu
                 
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 REG="%env.DOCKER_REGISTRY%"
                 VER="%env.DOCKER_TAG%"
                 FE="${'$'}CHECKOUT/frontend"
                 
+                # Detecta artefactos (CRA=build, Vite=dist, Next=out)
                 ART=""
                 for d in build dist out; do
-                  if [[ -d "${'$'}FE/${'$'}d" ]]; then ART="${'$'}d"; break; fi
+                  if [ -d "${'$'}FE/${'$'}d" ]; then ART="${'$'}d"; break; fi
                 done
-                [[ -n "${'$'}ART" ]] || { echo "No se encontraron artefactos (build/dist/out) en ${'$'}FE"; exit 2; }
+                if [ -z "${'$'}ART" ]; then
+                  echo "No se encontraron artefactos (build/dist/out) en ${'$'}FE"
+                  ls -la "${'$'}FE"
+                  exit 2
+                fi
+                echo "Artefactos detectados: ${'$'}ART"
                 
+                # Prepara contexto mínimo
                 CTX="${'$'}(mktemp -d)"
                 cp -R "${'$'}FE/${'$'}ART" "${'$'}CTX/${'$'}ART"
                 
