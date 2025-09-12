@@ -1,5 +1,6 @@
 import jetbrains.buildServer.configs.kotlin.*
 import jetbrains.buildServer.configs.kotlin.buildSteps.script
+import jetbrains.buildServer.configs.kotlin.triggers.vcs
 
 /*
 The settings script is an entry point for defining a TeamCity
@@ -155,6 +156,12 @@ object Tunefy : BuildType({
                 docker push "${'$'}REG/tunefy/frontend:${'$'}VER"
                 echo "##teamcity[buildStatus text='Pushed frontend:${'$'}VER']"
             """.trimIndent()
+        }
+    }
+
+    triggers {
+        vcs {
+            branchFilter = ""
         }
     }
 })
