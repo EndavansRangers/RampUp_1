@@ -53,8 +53,12 @@ object Tunefy : BuildType({
             id = "borrar"
             scriptContent = """
                 set -eu
+                echo "--- pwd: ${'$'}(pwd)"
+                ls -la .git || { echo "No hay .git en el directorio actual"; exit 2; }
+                
+                # Monta el working dir real (pwd), no uses la variable de TeamCity
                 docker run --rm \
-                  -v "%teamcity.build.checkoutDir%:/repo" \
+                  -v "${'$'}(pwd):/repo" \
                   gittools/gitversion:5.12.0 /repo /output buildserver
                 
                 echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
