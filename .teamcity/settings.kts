@@ -99,5 +99,30 @@ object Tunefy : BuildType({
                 '
             """.trimIndent()
         }
+        script {
+            name = "Frontend: push"
+            id = "Frontend_push"
+            scriptContent = """
+                CHECKOUT="%teamcity.build.checkoutDir%"
+                REG="%env.DOCKER_REGISTRY%"
+                VER="%GitVersion.SemVer%"
+                
+                TMPCTX="${'$'}(mktemp -d)"
+                # Detecta carpeta de artefactos (adjust si usas .next/out)
+                ART="build"; [ -d "${'$'}CHECKOUT/frontend/${'$'}ART" ] || ART="dist"
+                cp -R "${'$'}CHECKOUT/frontend/${'$'}ART" "${'$'}TMPCTX/${'$'}ART"
+                
+                cat > "${'$'}TMPCTX/Dockerfile" <<'EOF'
+                FROM nginx:alpine
+                ARG ART=build
+                COPY ${'$'}{ART}/ /usr/share/nginx/html/
+                RUN printf 'server {\n  listen 80;\n  server_name _;\n  root /usr/share/nginx/html;\n  location / { try_files ${'$'}${'$'}uri /index.html; }\n}\n' > /etc/nginx/conf.d/default.conf
+                EOF
+                
+                docker build -t "${'$'}REG/tunefy/frontend:${'$'}VER" --build-arg ART="${'$'}ART" "${'$'}TMPCTX"
+                docker push "${'$'}REG/tunefy/frontend:${'$'}VER"
+                echo "##teamcity[buildStatus text='Pushed frontend:${'$'}VER']"
+            """.trimIndent()
+        }
     }
 })
