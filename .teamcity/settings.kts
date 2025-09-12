@@ -47,6 +47,7 @@ object Tunefy : BuildType({
         script {
             name = "GitVersion"
             id = "GitVersion"
+            enabled = false
             scriptContent = """
                 BR="${'$'}{env.GIT_BRANCH:-}"
                 [ -n "${'$'}BR" ] && git -C "${'$'}CLONE" checkout "${'$'}BR" || true
