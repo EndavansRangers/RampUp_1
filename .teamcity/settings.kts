@@ -61,29 +61,39 @@ object Tunefy : BuildType({
                 set -eu
                 
                 CHECKOUT="%teamcity.build.checkoutDir%"
-                # Sanity: asegúrate de que en el workspace hay .git
-                ls -la "${'$'}CHECKOUT/.git" || { echo "Falta .git en ${'$'}CHECKOUT"; exit 2; }
+                [ -d "${'$'}CHECKOUT/.git" ] || { echo "Falta .git en ${'$'}CHECKOUT"; ls -la "${'$'}CHECKOUT"; exit 2; }
                 
-                # Empaquetamos el repo y lo "inyectamos" por stdin al contenedor
-                tar -C "${'$'}CHECKOUT" -cf - . \
+                TMP="${'$'}(mktemp -d)"
+                BUNDLE="${'$'}TMP/repo.bundle"
+                CLONE="${'$'}TMP/repo"
+                
+                echo ">> Creando bundle autocontenido del checkout"
+                git -C "${'$'}CHECKOUT" bundle create "${'$'}BUNDLE" --all --tags
+                
+                echo ">> Clonando desde el bundle (sin alternates)"
+                git clone "${'$'}BUNDLE" "${'$'}CLONE"
+                
+                # Si TeamCity inyecta la rama, cámbiate; si no, deja HEAD por defecto
+                BR="${'$'}{TEAMCITY_BUILD_BRANCH:-}"; BR="${'$'}{BR#refs/heads/}"
+                [ -n "${'$'}BR" ] && git -C "${'$'}CLONE" checkout "${'$'}BR" || true
+                
+                # Ejecutar GitVersion en contenedor SIN bind-mounts (tar-stream)
+                tar -C "${'$'}CLONE" -cf - . \
                 | docker run --rm -i mcr.microsoft.com/dotnet/sdk:8.0-alpine sh -lc '
                     set -e
                     apk add --no-cache git >/dev/null
                     mkdir -p /repo
                     tar -xf - -C /repo
-                
-                    # Comprobamos que .git existe dentro del contenedor
-                    ls -la /repo/.git || { echo "No hay .git dentro del contenedor"; exit 2; }
-                
                     git config --global --add safe.directory /repo
                     dotnet tool install -g GitVersion.Tool --version 5.12.0 >/dev/null
                     ~/.dotnet/tools/dotnet-gitversion /repo /output buildserver
                 '
                 
-                # Publica el build number/variables para los siguientes steps
                 echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
-                echo "##teamcity[setParameter name='env.BUILD_VERSION' value='%GitVersion.SemVer%']"
                 echo "##teamcity[setParameter name='env.DOCKER_TAG' value='%GitVersion.SemVer%']"
+                
+                rm -rf "${'$'}TMP"
+                echo ">> OK GitVersion"
             """.trimIndent()
         }
         script {
