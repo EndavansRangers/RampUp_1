@@ -31,4 +31,8 @@ project {
 
 object Tunefy : BuildType({
     name = "Tunefy"
+
+    vcs {
+        root(DslContext.settingsRoot)
+    }
 })
