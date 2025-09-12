@@ -161,7 +161,9 @@ object Tunefy : BuildType({
 
     triggers {
         vcs {
+            triggerRules = "+:*"
             branchFilter = ""
+            enableQueueOptimization = false
         }
     }
 })
