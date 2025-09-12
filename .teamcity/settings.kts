@@ -125,13 +125,18 @@ object Tunefy : BuildType({
             name = "Backend: build Docker + push"
             id = "Backend_build_Docker_push"
             scriptContent = """
+                set -eu
+                
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 REG="%env.DOCKER_REGISTRY%"
-                VER="%GitVersion.SemVer%"
+                VER="%env.DOCKER_TAG%"
                 
+                echo "Usando tag: ${'$'}VER"
+                
+                # Construir desde la carpeta backend (evita contexto vacío)
                 docker build -t "${'$'}REG/tunefy/backend:${'$'}VER" -f "${'$'}CHECKOUT/backend/Dockerfile" "${'$'}CHECKOUT/backend"
                 docker push "${'$'}REG/tunefy/backend:${'$'}VER"
-                echo "##teamcity[buildStatus text='Pushed backend:${'$'}VER']"
+                echo "Pushed backend:${'$'}VER"
             """.trimIndent()
         }
         script {
