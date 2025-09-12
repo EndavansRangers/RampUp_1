@@ -45,7 +45,7 @@ object Tunefy : BuildType({
 
     steps {
         script {
-            name = "borrar"
+            name = "GitVersion"
             id = "borrar"
             scriptContent = """
                 set -eu pipefail
