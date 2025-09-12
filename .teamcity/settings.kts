@@ -36,6 +36,7 @@ object Tunefy : BuildType({
 
     params {
         param("env.DOCKER_REGISTRY", "10.20.0.150:5000")
+        param("env.DOCKER_TAG", "1")
         param("GitVersion.SemVer", "1.1.0")
     }
 
