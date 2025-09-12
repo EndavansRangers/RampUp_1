@@ -57,14 +57,33 @@ object Tunefy : BuildType({
             name = "borrar"
             id = "borrar"
             scriptContent = """
-                set -eu
+                set -euo pipefail
                 
                 CHECKOUT="%teamcity.build.checkoutDir%"
-                ls -la "${'$'}CHECKOUT/.git" || { echo "Falta .git en ${'$'}CHECKOUT"; exit 2; }
+                [ -d "${'$'}CHECKOUT/.git" ] || { echo "Falta .git en ${'$'}CHECKOUT"; ls -la "${'$'}CHECKOUT"; exit 2; }
                 
-                # Calcula SemVer DENTRO del contenedor y lo devuelve por stdout
-                SEMVER=${'$'}(
-                  tar -C "${'$'}CHECKOUT" -cf - . \
+                TMP="${'$'}(mktemp -d)"
+                BUNDLE="${'$'}TMP/repo.bundle"
+                CLONE="${'$'}TMP/repo"
+                OUT="${'$'}TMP/out.txt"
+                ERR="${'$'}TMP/err.txt"
+                
+                echo ">> Creando bundle autocontenido del checkout"
+                git -C "${'$'}CHECKOUT" bundle create "${'$'}BUNDLE" --all --tags
+                
+                echo ">> Clonando desde el bundle (sin alternates)"
+                git clone "${'$'}BUNDLE" "${'$'}CLONE"
+                
+                # Cambia a la rama del build si TeamCity la expone; si no, deja HEAD
+                BR="${'$'}{TEAMCITY_BUILD_BRANCH:-}"; BR="${'$'}{BR#refs/heads/}"
+                if [[ -n "${'$'}BR" ]]; then
+                  echo ">> Checkout a rama: ${'$'}BR"
+                  git -C "${'$'}CLONE" checkout "${'$'}BR" || true
+                fi
+                
+                echo ">> Calculando SemVer con GitVersion (en contenedor)"
+                # Usamos dotnet SDK (tiene tar y paquete git disponible) y evitamos bind-mounts
+                if ! tar -C "${'$'}CLONE" -cf - . \
                   | docker run --rm -i mcr.microsoft.com/dotnet/sdk:8.0-alpine sh -lc '
                       set -e
                       apk add --no-cache git >/dev/null
@@ -73,14 +92,25 @@ object Tunefy : BuildType({
                       git config --global --add safe.directory /repo
                       dotnet tool install -g GitVersion.Tool --version 5.12.0 >/dev/null
                       ~/.dotnet/tools/dotnet-gitversion /repo /showvariable SemVer
-                    '
-                )
+                    ' >"${'$'}OUT" 2>"${'$'}ERR"
+                then
+                  echo "---- GitVersion STDERR ----"; cat "${'$'}ERR" || true
+                  echo "---- GitVersion STDOUT ----"; cat "${'$'}OUT" || true
+                  rm -rf "${'$'}TMP"
+                  exit 1
+                fi
+                
+                SEMVER="${'$'}(tr -d '\r' < "${'$'}OUT" | tail -n1)"
+                [ -n "${'$'}SEMVER" ] || { echo "SemVer vacío"; echo "STDOUT:"; cat "${'$'}OUT"; echo "STDERR:"; cat "${'$'}ERR"; rm -rf "${'$'}TMP"; exit 1; }
                 
                 echo "GitVersion.SemVer calculado: ${'$'}SEMVER"
                 
-                # Publica para el resto de steps (sin placeholders de TeamCity)
+                # Publicar variables para los siguientes steps (sin usar %GitVersion.SemVer%)
                 echo "##teamcity[setParameter name='env.DOCKER_TAG' value='${'$'}SEMVER']"
                 echo "##teamcity[buildNumber '${'$'}SEMVER']"
+                
+                rm -rf "${'$'}TMP"
+                echo ">> OK GitVersion"
             """.trimIndent()
         }
         script {
