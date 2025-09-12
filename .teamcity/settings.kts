@@ -83,5 +83,21 @@ object Tunefy : BuildType({
                 echo "##teamcity[buildStatus text='Pushed backend:${'$'}VER']"
             """.trimIndent()
         }
+        script {
+            name = "Frontend: build"
+            id = "Frontend_build"
+            scriptContent = """
+                CHECKOUT="%teamcity.build.checkoutDir%"
+                HOST_FRONTEND="${'$'}CHECKOUT/frontend"
+                
+                tar -C "${'$'}HOST_FRONTEND" -cf - . \
+                | docker run --rm -i -w /app -e CI=true node:18-alpine sh -lc '
+                  set -eu
+                  tar -xf - -C /app
+                  npm ci
+                  npm run build
+                '
+            """.trimIndent()
+        }
     }
 })
