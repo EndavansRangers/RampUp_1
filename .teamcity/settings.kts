@@ -49,6 +49,18 @@ object Tunefy : BuildType({
             scriptContent = """ls -la "%teamcity.build.checkoutDir%/.git" || (echo "No hay .git"; exit 2)"""
         }
         script {
+            name = "borrar"
+            id = "borrar"
+            scriptContent = """
+                set -eu
+                docker run --rm \
+                  -v "%teamcity.build.checkoutDir%:/repo" \
+                  gittools/gitversion:5.12.0 /repo /output buildserver
+                
+                echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
+            """.trimIndent()
+        }
+        script {
             name = "Backend: deps"
             id = "Backend_deps"
             scriptContent = """
@@ -117,18 +129,6 @@ object Tunefy : BuildType({
                 docker build -t "${'$'}REG/tunefy/frontend:${'$'}VER" --build-arg ART="${'$'}ART" "${'$'}TMPCTX"
                 docker push "${'$'}REG/tunefy/frontend:${'$'}VER"
                 echo "##teamcity[buildStatus text='Pushed frontend:${'$'}VER']"
-            """.trimIndent()
-        }
-        script {
-            name = "borrar"
-            id = "borrar"
-            scriptContent = """
-                set -eu
-                docker run --rm \
-                  -v "%teamcity.build.checkoutDir%:/repo" \
-                  gittools/gitversion:5.12.0 /repo /output buildserver
-                
-                echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
             """.trimIndent()
         }
     }
