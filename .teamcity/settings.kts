@@ -47,7 +47,10 @@ object Tunefy : BuildType({
         script {
             name = "GitVersion"
             id = "GitVersion"
-            scriptContent = """ls -la "%teamcity.build.checkoutDir%/.git" || (echo "No hay .git"; exit 2)"""
+            scriptContent = """
+                BR="${'$'}{env.GIT_BRANCH:-}"
+                [ -n "${'$'}BR" ] && git -C "${'$'}CLONE" checkout "${'$'}BR" || true
+            """.trimIndent()
         }
         script {
             name = "borrar"
