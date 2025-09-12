@@ -143,16 +143,16 @@ object Tunefy : BuildType({
             name = "Frontend: build"
             id = "Frontend_build"
             scriptContent = """
+                set -eu
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 HOST_FRONTEND="${'$'}CHECKOUT/frontend"
                 
                 tar -C "${'$'}HOST_FRONTEND" -cf - . \
-                | docker run --rm -i -w /app \
-                  node:18-alpine sh -lc '
-                    set -e
-                    tar -xf - -C /app
-                    npm ci --no-audit --no-fund
-                    CI= npm run build
+                | docker run --rm -i -w /app node:18-alpine sh -lc '
+                  set -e
+                  tar -xf - -C /app
+                  npm ci --no-audit --no-fund
+                  CI= npm run build
                 '
             """.trimIndent()
         }
