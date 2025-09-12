@@ -47,11 +47,12 @@ object Tunefy : BuildType({
             name = "GitVersion"
             id = "GitVersion"
             scriptContent = """
-                docker run --rm -v "%teamcity.build.checkoutDir%:/repo" -w /repo \
-                  gittools/gitversion:5.12.0-linux /repo /output buildserver
-                
-                # Opcional: mostrar la versión calculada
-                echo "##teamcity[message text='GitVersion: %GitVersion.SemVer%']"
+                set -euo pipefail
+                docker run --rm \
+                  -v "%teamcity.build.checkoutDir%:/repo" \
+                  gittools/gitversion:5.12.0 /repo /output buildserver
+                # Si prefieres el último estable:
+                # docker run --rm -v "%teamcity.build.checkoutDir%:/repo" gittools/gitversion:latest /repo /output buildserver
                 echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
             """.trimIndent()
         }
