@@ -160,7 +160,7 @@ object Tunefy : BuildType({
             name = "Frontend: push"
             id = "Frontend_push"
             scriptContent = """
-                set -euo pipefail
+                set -eu pipefail
                 
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 REG="%env.DOCKER_REGISTRY%"
