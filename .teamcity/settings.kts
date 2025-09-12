@@ -1,4 +1,5 @@
 import jetbrains.buildServer.configs.kotlin.*
+import jetbrains.buildServer.configs.kotlin.buildSteps.script
 
 /*
 The settings script is an entry point for defining a TeamCity
@@ -38,5 +39,20 @@ object Tunefy : BuildType({
 
     vcs {
         root(DslContext.settingsRoot)
+    }
+
+    steps {
+        script {
+            name = "GitVersion"
+            id = "GitVersion"
+            scriptContent = """
+                docker run --rm -v "%teamcity.build.checkoutDir%:/repo" -w /repo \
+                  gittools/gitversion:5.12.0-linux /repo /output buildserver
+                
+                # Opcional: mostrar la versión calculada
+                echo "##teamcity[message text='GitVersion: %GitVersion.SemVer%']"
+                echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
+            """.trimIndent()
+        }
     }
 })
