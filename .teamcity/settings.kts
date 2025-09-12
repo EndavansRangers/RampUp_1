@@ -60,34 +60,29 @@ object Tunefy : BuildType({
                 set -eu
                 
                 CHECKOUT="%teamcity.build.checkoutDir%"
-                [ -d "${'$'}CHECKOUT/.git" ] || { echo "Falta .git en ${'$'}CHECKOUT"; ls -la "${'$'}CHECKOUT"; exit 2; }
+                # Sanity: asegúrate de que en el workspace hay .git
+                ls -la "${'$'}CHECKOUT/.git" || { echo "Falta .git en ${'$'}CHECKOUT"; exit 2; }
                 
-                TMPROOT="${'$'}(mktemp -d)"
-                CLONE="${'$'}TMPROOT/repo"
+                # Empaquetamos el repo y lo "inyectamos" por stdin al contenedor
+                tar -C "${'$'}CHECKOUT" -cf - . \
+                | docker run --rm -i mcr.microsoft.com/dotnet/sdk:8.0-alpine sh -lc '
+                    set -e
+                    apk add --no-cache git >/dev/null
+                    mkdir -p /repo
+                    tar -xf - -C /repo
                 
-                echo ">> Clonando repo limpio (sin hardlinks/alternates): ${'$'}CLONE"
-                git clone --no-local --no-hardlinks "${'$'}CHECKOUT" "${'$'}CLONE"
+                    # Comprobamos que .git existe dentro del contenedor
+                    ls -la /repo/.git || { echo "No hay .git dentro del contenedor"; exit 2; }
                 
-                # Intenta usar la rama del build si TeamCity la inyecta como env var;
-                # si no existe, nos quedamos en HEAD (rama por defecto del repo).
-                BR="${'$'}{TEAMCITY_BUILD_BRANCH:-}"
-                if [ -n "${'$'}BR" ]; then
-                  BR="${'$'}{BR#refs/heads/}"
-                  echo ">> Checkout a rama: ${'$'}BR"
-                  git -C "${'$'}CLONE" checkout "${'$'}BR" || true
-                fi
+                    git config --global --add safe.directory /repo
+                    dotnet tool install -g GitVersion.Tool --version 5.12.0 >/dev/null
+                    ~/.dotnet/tools/dotnet-gitversion /repo /output buildserver
+                '
                 
-                # Sanity
-                ls -la "${'$'}CLONE/.git" || { echo "No hay .git en el clone"; exit 2; }
-                
-                # GitVersion (imagen oficial)
-                docker run --rm -v "${'$'}CLONE:/repo" gittools/gitversion:5.12.0 /repo /output buildserver
-                
-                echo ">> SemVer: %GitVersion.SemVer%"
+                # Publica el build number/variables para los siguientes steps
                 echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
-                
-                rm -rf "${'$'}TMPROOT"
-                echo ">> OK version step"
+                echo "##teamcity[setParameter name='env.BUILD_VERSION' value='%GitVersion.SemVer%']"
+                echo "##teamcity[setParameter name='env.DOCKER_TAG' value='%GitVersion.SemVer%']"
             """.trimIndent()
         }
         script {
