@@ -52,32 +52,74 @@ object Tunefy : BuildType({
             name = "borrar"
             id = "borrar"
             scriptContent = """
+                #!/bin/sh   
+                #usamos POSIX
                 set -eu
                 
                 CHECKOUT="%teamcity.build.checkoutDir%"
-                [ -d "${'$'}CHECKOUT/.git" ] || { echo "Falta .git en ${'$'}CHECKOUT"; exit 2; }
+                echo ">> Checkout: ${'$'}CHECKOUT"
+                
+                # Sanity: revisamos que se tenga un .git
+                if [ ! -d "${'$'}CHECKOUT/.git" ]; then
+                  echo "FALTA .git en ${'$'}CHECKOUT"
+                  ls -la "${'$'}CHECKOUT"
+                  exit 1
+                fi
                 
                 TMPROOT="${'$'}(mktemp -d)"
                 CLONE="${'$'}TMPROOT/repo"
                 
-                echo ">> Clonando repo limpio (sin hardlinks/alternates) a: ${'$'}CLONE"
+                echo ">> Clonando repo limpio (sin hardlinks/alternates) a: ${'$'}CLONE" #se usa para que GitVersion vea metadata 
                 git clone --no-local --no-hardlinks "${'$'}CHECKOUT" "${'$'}CLONE"
+                #borarr cache
+                rm -rf "${'$'}CLONE/.git/gitversion_cache" || true
                 
-                # Determinar rama del build (normaliza refs/heads/*)
+                # Determinar rama del build (normaliza refs/heads/*) 
                 BR_RAW="${'$'}{TEAMCITY_BUILD_BRANCH:-%teamcity.build.branch%}"
-                BR="${'$'}{BR_RAW#refs/heads/}"
+                BR="${'$'}(echo "${'$'}BR_RAW" | sed 's#^refs/heads/##')"
                 if [ -n "${'$'}BR" ] && git -C "${'$'}CLONE" show-ref --verify --quiet "refs/heads/${'$'}BR"; then
                   echo ">> Checkout a rama: ${'$'}BR"
                   git -C "${'$'}CLONE" checkout "${'$'}BR"
+                else
+                  echo ">> Sigo con HEAD actual"
                 fi
                 
-                # Ejecuta GitVersion en el repo autocontenido
-                docker run --rm -v "${'$'}CLONE:/repo" gittools/gitversion:5.12.0 /repo /output buildserver
+                echo ">> Host .git sanity:"
+                git -C "${'$'}CLONE" rev-parse --is-inside-work-tree || true
+                git -C "${'$'}CLONE" show -s --format='%h %s' || true
                 
-                echo ">> SemVer: %GitVersion.SemVer%"
-                echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
+                echo ">> Calculando SemVer vía tar-stream + dotnet SDK + GitVersion.Tool"
+                calc_var () {
+                  VAR="${'$'}1"
+                  tar -C "${'$'}CLONE" -cf - . \
+                  | docker run --rm -i mcr.microsoft.com/dotnet/sdk:8.0-alpine sh -lc "
+                      set -e
+                      apk add --no-cache git >/dev/null
+                      mkdir -p /repo
+                      tar -xf - -C /repo
+                      git config --global --add safe.directory /repo
+                      rm -rf /repo/.git/gitversion_cache || true
+                      dotnet tool install -g GitVersion.Tool --version 5.12.0 >/dev/null
+                      ~/.dotnet/tools/dotnet-gitversion /repo /showvariable ${'$'}VAR
+                    "
+                }
+                
+                SEMVER="${'$'}(calc_var SemVer)"
+                FULL="${'$'}(calc_var FullSemVer)"
+                
+                [ -n "${'$'}SEMVER" ] || { echo 'GitVersion no devolvió SemVer'; exit 1; }
+                
+                echo ">> SemVer=${'$'}SEMVER"
+                echo ">> FullSemVer=${'$'}FULL"
+                
+                # Publicar para los siguientes steps
+                echo "##teamcity[buildNumber '${'$'}SEMVER']"
+                echo "##teamcity[setParameter name='env.BUILD_VERSION' value='${'$'}SEMVER']"
+                echo "##teamcity[setParameter name='env.DOCKER_TAG' value='${'$'}SEMVER']"
+                echo "##teamcity[setParameter name='system.GitVersion.SemVer' value='${'$'}SEMVER']"
                 
                 rm -rf "${'$'}TMPROOT"
+                echo ">> OK version step"
             """.trimIndent()
         }
         script {
