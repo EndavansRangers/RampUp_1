@@ -145,20 +145,15 @@ object Tunefy : BuildType({
             scriptContent = """
                 set -eu
                 CHECKOUT="%teamcity.build.checkoutDir%"
-                FE="${'$'}CHECKOUT/frontend"
+                HOST_FRONTEND="${'$'}CHECKOUT/frontend"
                 
-                # Construye dentro del contenedor y devuelve /app/build al workspace
-                tar -C "${'$'}FE" -cf - . \
+                tar -C "${'$'}HOST_FRONTEND" -cf - . \
                 | docker run --rm -i -w /app node:18-alpine sh -lc '
                   set -e
-                  # Asegura tar (normalmente ya está)
-                  apk add --no-cache tar >/dev/null 2>&1 || true
                   tar -xf - -C /app
                   npm ci --no-audit --no-fund
                   CI= npm run build
-                  # Empaqueta la carpeta build para retornarla al host
-                  tar -C /app -cf - build
-                ' | tar -C "${'$'}FE" -xvf -
+                '
             """.trimIndent()
         }
         script {
