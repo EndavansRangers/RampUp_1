@@ -53,15 +53,31 @@ object Tunefy : BuildType({
             id = "borrar"
             scriptContent = """
                 set -eu
-                echo "--- pwd: ${'$'}(pwd)"
-                ls -la .git || { echo "No hay .git en el directorio actual"; exit 2; }
                 
-                # Monta el working dir real (pwd), no uses la variable de TeamCity
-                docker run --rm \
-                  -v "${'$'}(pwd):/repo" \
-                  gittools/gitversion:5.12.0 /repo /output buildserver
+                CHECKOUT="%teamcity.build.checkoutDir%"
+                [ -d "${'$'}CHECKOUT/.git" ] || { echo "Falta .git en ${'$'}CHECKOUT"; exit 2; }
                 
+                TMPROOT="${'$'}(mktemp -d)"
+                CLONE="${'$'}TMPROOT/repo"
+                
+                echo ">> Clonando repo limpio (sin hardlinks/alternates) a: ${'$'}CLONE"
+                git clone --no-local --no-hardlinks "${'$'}CHECKOUT" "${'$'}CLONE"
+                
+                # Determinar rama del build (normaliza refs/heads/*)
+                BR_RAW="${'$'}{TEAMCITY_BUILD_BRANCH:-%teamcity.build.branch%}"
+                BR="${'$'}{BR_RAW#refs/heads/}"
+                if [ -n "${'$'}BR" ] && git -C "${'$'}CLONE" show-ref --verify --quiet "refs/heads/${'$'}BR"; then
+                  echo ">> Checkout a rama: ${'$'}BR"
+                  git -C "${'$'}CLONE" checkout "${'$'}BR"
+                fi
+                
+                # Ejecuta GitVersion en el repo autocontenido
+                docker run --rm -v "${'$'}CLONE:/repo" gittools/gitversion:5.12.0 /repo /output buildserver
+                
+                echo ">> SemVer: %GitVersion.SemVer%"
                 echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
+                
+                rm -rf "${'$'}TMPROOT"
             """.trimIndent()
         }
         script {
