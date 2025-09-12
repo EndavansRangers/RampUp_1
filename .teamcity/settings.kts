@@ -57,7 +57,7 @@ object Tunefy : BuildType({
             name = "borrar"
             id = "borrar"
             scriptContent = """
-                set -euo pipefail
+                set -eu pipefail
                 
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 [ -d "${'$'}CHECKOUT/.git" ] || { echo "Falta .git en ${'$'}CHECKOUT"; ls -la "${'$'}CHECKOUT"; exit 2; }
