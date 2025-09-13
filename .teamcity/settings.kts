@@ -181,7 +181,7 @@ object Tunefy : BuildType({
                 VER="%env.DOCKER_TAG%"
                 FE="${'$'}CHECKOUT/frontend"
                 
-                # Detecta artefactos (CRA=build, Vite=dist, Next=out)
+                # Detectar artefactos (CRA=build, Vite=dist, Next=out)
                 ART=""
                 for d in build dist out; do
                   if [ -d "${'$'}FE/${'$'}d" ]; then ART="${'$'}d"; break; fi
@@ -193,7 +193,7 @@ object Tunefy : BuildType({
                 fi
                 echo "Artefactos detectados: ${'$'}ART"
                 
-                # Prepara contexto mínimo
+                # Contexto mínimo
                 CTX="${'$'}(mktemp -d)"
                 cp -R "${'$'}FE/${'$'}ART" "${'$'}CTX/${'$'}ART"
                 
