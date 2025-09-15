@@ -219,6 +219,7 @@ object Tunefy : BuildType({
                 SPACE="Default"
                 PROJECT="Tunefy"
                 ENV="Dev"
+                REG="%env.DOCKER_REGISTRY%"
                 REL="%env.DOCKER_TAG%"
                 
                 # 1) Crear release con el mismo número de GitVersion
