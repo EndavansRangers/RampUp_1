@@ -150,7 +150,7 @@ object Tunefy : BuildType({
                 # Enviamos el contenido del frontend al contenedor por stdin
                 # y devolvemos SOLO la carpeta /app/build por stdout.
                 tar -C "${'$'}FE" -cf - . \
-                | docker run --rm -i -w /app node:18-alpine sh -lc '
+                | docker run --rm -i -w /app -e CI=true -e REACT_APP_BACKEND_URL=/api node:18-alpine sh -lc '
                   set -e
                   # Nada de stdout antes del tar final:
                   # - Instalamos tar si hace falta (silenciado)
