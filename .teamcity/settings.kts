@@ -219,7 +219,7 @@ object Tunefy : BuildType({
                 SPACE="Default"
                 PROJECT="Tunefy"
                 ENV="Dev"
-                REL="%GitVersion.SemVer%"
+                REL="%env.DOCKER_TAG%"
                 
                 # 1) Crear release con el mismo número de GitVersion
                 docker run --rm octopusdeploy/octo:9.1.7 \
