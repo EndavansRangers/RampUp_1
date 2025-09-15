@@ -36,8 +36,8 @@ object Tunefy : BuildType({
 
     params {
         param("env.DOCKER_REGISTRY", "10.20.0.150:5000")
-        param("env.GIT_BRANCH", "develop")
-        param("GitVersion.SemVer", "1.0.0")
+        param("env.DOCKER_TAG", "1")
+        param("GitVersion.SemVer", "1.1.0")
     }
 
     vcs {
@@ -47,18 +47,9 @@ object Tunefy : BuildType({
     steps {
         script {
             name = "GitVersion"
-            id = "GitVersion"
-            enabled = false
-            scriptContent = """
-                BR="${'$'}{env.GIT_BRANCH:-}"
-                [ -n "${'$'}BR" ] && git -C "${'$'}CLONE" checkout "${'$'}BR" || true
-            """.trimIndent()
-        }
-        script {
-            name = "borrar"
             id = "borrar"
             scriptContent = """
-                set -eu
+                set -eu pipefail
                 
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 [ -d "${'$'}CHECKOUT/.git" ] || { echo "Falta .git en ${'$'}CHECKOUT"; ls -la "${'$'}CHECKOUT"; exit 2; }
@@ -66,6 +57,8 @@ object Tunefy : BuildType({
                 TMP="${'$'}(mktemp -d)"
                 BUNDLE="${'$'}TMP/repo.bundle"
                 CLONE="${'$'}TMP/repo"
+                OUT="${'$'}TMP/out.txt"
+                ERR="${'$'}TMP/err.txt"
                 
                 echo ">> Creando bundle autocontenido del checkout"
                 git -C "${'$'}CHECKOUT" bundle create "${'$'}BUNDLE" --all --tags
@@ -73,24 +66,40 @@ object Tunefy : BuildType({
                 echo ">> Clonando desde el bundle (sin alternates)"
                 git clone "${'$'}BUNDLE" "${'$'}CLONE"
                 
-                # Si TeamCity inyecta la rama, cámbiate; si no, deja HEAD por defecto
+                # Cambia a la rama del build si TeamCity la expone; si no, deja HEAD
                 BR="${'$'}{TEAMCITY_BUILD_BRANCH:-}"; BR="${'$'}{BR#refs/heads/}"
-                [ -n "${'$'}BR" ] && git -C "${'$'}CLONE" checkout "${'$'}BR" || true
+                if [[ -n "${'$'}BR" ]]; then
+                  echo ">> Checkout a rama: ${'$'}BR"
+                  git -C "${'$'}CLONE" checkout "${'$'}BR" || true
+                fi
                 
-                # Ejecutar GitVersion en contenedor SIN bind-mounts (tar-stream)
-                tar -C "${'$'}CLONE" -cf - . \
-                | docker run --rm -i mcr.microsoft.com/dotnet/sdk:8.0-alpine sh -lc '
-                    set -e
-                    apk add --no-cache git >/dev/null
-                    mkdir -p /repo
-                    tar -xf - -C /repo
-                    git config --global --add safe.directory /repo
-                    dotnet tool install -g GitVersion.Tool --version 5.12.0 >/dev/null
-                    ~/.dotnet/tools/dotnet-gitversion /repo /output buildserver
-                '
+                echo ">> Calculando SemVer con GitVersion (en contenedor)"
+                # Usamos dotnet SDK (tiene tar y paquete git disponible) y evitamos bind-mounts
+                if ! tar -C "${'$'}CLONE" -cf - . \
+                  | docker run --rm -i mcr.microsoft.com/dotnet/sdk:8.0-alpine sh -lc '
+                      set -e
+                      apk add --no-cache git >/dev/null
+                      mkdir -p /repo
+                      tar -xf - -C /repo
+                      git config --global --add safe.directory /repo
+                      dotnet tool install -g GitVersion.Tool --version 5.12.0 >/dev/null
+                      ~/.dotnet/tools/dotnet-gitversion /repo /showvariable SemVer
+                    ' >"${'$'}OUT" 2>"${'$'}ERR"
+                then
+                  echo "---- GitVersion STDERR ----"; cat "${'$'}ERR" || true
+                  echo "---- GitVersion STDOUT ----"; cat "${'$'}OUT" || true
+                  rm -rf "${'$'}TMP"
+                  exit 1
+                fi
                 
-                echo "##teamcity[buildNumber '%GitVersion.SemVer%']"
-                echo "##teamcity[setParameter name='env.DOCKER_TAG' value='%GitVersion.SemVer%']"
+                SEMVER="${'$'}(tr -d '\r' < "${'$'}OUT" | tail -n1)"
+                [ -n "${'$'}SEMVER" ] || { echo "SemVer vacío"; echo "STDOUT:"; cat "${'$'}OUT"; echo "STDERR:"; cat "${'$'}ERR"; rm -rf "${'$'}TMP"; exit 1; }
+                
+                echo "GitVersion.SemVer calculado: ${'$'}SEMVER"
+                
+                # Publicar variables para los siguientes steps (sin usar %GitVersion.SemVer%)
+                echo "##teamcity[setParameter name='env.DOCKER_TAG' value='${'$'}SEMVER']"
+                echo "##teamcity[buildNumber '${'$'}SEMVER']"
                 
                 rm -rf "${'$'}TMP"
                 echo ">> OK GitVersion"
@@ -116,55 +125,112 @@ object Tunefy : BuildType({
             name = "Backend: build Docker + push"
             id = "Backend_build_Docker_push"
             scriptContent = """
+                set -eu
+                
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 REG="%env.DOCKER_REGISTRY%"
-                VER="%GitVersion.SemVer%"
+                VER="%env.DOCKER_TAG%"
                 
+                echo "Usando tag: ${'$'}VER"
+                
+                # Construir desde la carpeta backend (evita contexto vacío)
                 docker build -t "${'$'}REG/tunefy/backend:${'$'}VER" -f "${'$'}CHECKOUT/backend/Dockerfile" "${'$'}CHECKOUT/backend"
                 docker push "${'$'}REG/tunefy/backend:${'$'}VER"
-                echo "##teamcity[buildStatus text='Pushed backend:${'$'}VER']"
+                echo "Pushed backend:${'$'}VER"
             """.trimIndent()
         }
         script {
             name = "Frontend: build"
             id = "Frontend_build"
             scriptContent = """
+                set -eu
                 CHECKOUT="%teamcity.build.checkoutDir%"
-                HOST_FRONTEND="${'$'}CHECKOUT/frontend"
+                FE="${'$'}CHECKOUT/frontend"
                 
-                tar -C "${'$'}HOST_FRONTEND" -cf - . \
-                | docker run --rm -i -w /app \
-                  node:18-alpine sh -lc '
-                    set -e
-                    tar -xf - -C /app
-                    npm ci --no-audit --no-fund
-                    CI= npm run build
-                '
+                # Enviamos el contenido del frontend al contenedor por stdin
+                # y devolvemos SOLO la carpeta /app/build por stdout.
+                tar -C "${'$'}FE" -cf - . \
+                | docker run --rm -i -w /app node:18-alpine sh -lc '
+                  set -e
+                  # Nada de stdout antes del tar final:
+                  # - Instalamos tar si hace falta (silenciado)
+                  apk add --no-cache tar >/dev/null 2>&1 || true
+                  # - Extraemos el código (logs a stderr)
+                  tar -xf - -C /app 1>&2
+                  # - Dependencias y build (logs a stderr)
+                  npm ci --no-audit --no-fund 1>&2
+                  CI= npm run build 1>&2
+                  # - Validamos que exista /app/build
+                  [ -d /app/build ] || { echo "No se generó /app/build" >&2; exit 3; }
+                  # - ÚNICO stdout válido: el tar de /app/build
+                  exec tar -C /app -cf - build
+                ' | tar -C "${'$'}FE" -xvf -
+                
+                # Verificación local
+                ls -la "${'$'}FE/build"
             """.trimIndent()
         }
         script {
             name = "Frontend: push"
             id = "Frontend_push"
             scriptContent = """
+                set -eu
+                
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 REG="%env.DOCKER_REGISTRY%"
-                VER="%GitVersion.SemVer%"
+                VER="%env.DOCKER_TAG%"
+                FE="${'$'}CHECKOUT/frontend"
                 
-                TMPCTX="${'$'}(mktemp -d)"
-                # Detecta carpeta de artefactos (adjust si usas .next/out)
-                ART="build"; [ -d "${'$'}CHECKOUT/frontend/${'$'}ART" ] || ART="dist"
-                cp -R "${'$'}CHECKOUT/frontend/${'$'}ART" "${'$'}TMPCTX/${'$'}ART"
+                # Detectar artefactos (CRA=build, Vite=dist, Next=out)
+                ART=""
+                for d in build dist out; do
+                  if [ -d "${'$'}FE/${'$'}d" ]; then ART="${'$'}d"; break; fi
+                done
+                if [ -z "${'$'}ART" ]; then
+                  echo "No se encontraron artefactos (build/dist/out) en ${'$'}FE"
+                  ls -la "${'$'}FE"
+                  exit 2
+                fi
+                echo "Artefactos detectados: ${'$'}ART"
                 
-                cat > "${'$'}TMPCTX/Dockerfile" <<'EOF'
+                # Contexto mínimo
+                CTX="${'$'}(mktemp -d)"
+                cp -R "${'$'}FE/${'$'}ART" "${'$'}CTX/${'$'}ART"
+                
+                cat > "${'$'}CTX/Dockerfile" <<'EOF'
                 FROM nginx:alpine
                 ARG ART=build
                 COPY ${'$'}{ART}/ /usr/share/nginx/html/
                 RUN printf 'server {\n  listen 80;\n  server_name _;\n  root /usr/share/nginx/html;\n  location / { try_files ${'$'}${'$'}uri /index.html; }\n}\n' > /etc/nginx/conf.d/default.conf
                 EOF
                 
-                docker build -t "${'$'}REG/tunefy/frontend:${'$'}VER" --build-arg ART="${'$'}ART" "${'$'}TMPCTX"
+                docker build -t "${'$'}REG/tunefy/frontend:${'$'}VER" --build-arg ART="${'$'}ART" "${'$'}CTX"
                 docker push "${'$'}REG/tunefy/frontend:${'$'}VER"
-                echo "##teamcity[buildStatus text='Pushed frontend:${'$'}VER']"
+                echo "Frontend publicado como ${'$'}REG/tunefy/frontend:${'$'}VER"
+            """.trimIndent()
+        }
+        script {
+            name = "Create & Deploy Release"
+            id = "Create_Deploy_Release"
+            scriptContent = """
+                OCTO_URL="http://10.20.0.221:8080"
+                OCTO_API_KEY="API-ZLBBY7WFTKNWCWQFQZ27HPZFATYHOJU9"
+                SPACE="Default"
+                PROJECT="Tunefy"
+                ENV="Dev"
+                REL="%GitVersion.SemVer%"
+                
+                # Crear la release con la MISMA versión de GitVersion
+                docker run --rm octopusdeploy/octo:latest \
+                  create-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
+                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
+                  --ignoreIfAlreadyExists
+                
+                # Desplegar inmediatamente a Dev
+                docker run --rm octopusdeploy/octo:latest \
+                  deploy-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
+                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
+                  --deployTo "${'$'}ENV" --progress --guidedFailure=false
             """.trimIndent()
         }
     }
@@ -173,6 +239,7 @@ object Tunefy : BuildType({
         vcs {
             triggerRules = "+:*"
             branchFilter = ""
+            perCheckinTriggering = true
             enableQueueOptimization = false
         }
     }
