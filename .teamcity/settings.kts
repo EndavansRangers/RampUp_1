@@ -213,27 +213,24 @@ object Tunefy : BuildType({
             name = "Create & Deploy Release"
             id = "Create_Deploy_Release"
             scriptContent = """
-                set -eu pipefail
+                set -euo pipefail
                 OCTO_URL="http://10.20.0.221:8080"
-                OCTO_API_KEY="API-ZLBBY7WFTKNWCWQFQZ27HPZFATYHOJU9"
+                OCTO_API_KEY="API-***"
                 SPACE="Default"
                 PROJECT="Tunefy"
                 ENV="Dev"
                 REG="%env.DOCKER_REGISTRY%"
                 REL="%env.DOCKER_TAG%"
                 
-                # 1) Crear release con el mismo número de GitVersion
                 docker run --rm octopusdeploy/octo:9.1.7 \
                   create-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
-                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
-                  --ignoreExisting
+                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" --ignoreExisting
                 
-                # 2) Desplegarla a Dev y esperar resultado
                 docker run --rm octopusdeploy/octo:9.1.7 \
                   deploy-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
                   --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
                   --deployTo "${'$'}ENV" --progress --waitForDeployment \
-                    --variable "BACKEND_IMAGE=${'$'}{REG}/tunefy/backend:${'$'}{REL}" \
+                  --variable "BACKEND_IMAGE=${'$'}{REG}/tunefy/backend:${'$'}{REL}" \
                   --variable "FRONTEND_IMAGE=${'$'}{REG}/tunefy/frontend:${'$'}{REL}"
             """.trimIndent()
         }
