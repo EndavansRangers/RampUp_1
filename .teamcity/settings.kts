@@ -215,7 +215,7 @@ object Tunefy : BuildType({
             scriptContent = """
                 set -eu pipefail
                 OCTO_URL="http://10.20.0.221:8080"
-                OCTO_API_KEY="API-***"
+                OCTO_API_KEY="API-ZLBBY7WFTKNWCWQFQZ27HPZFATYHOJU9"
                 SPACE="Default"
                 PROJECT="Tunefy"
                 ENV="Dev"
