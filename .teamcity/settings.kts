@@ -98,8 +98,8 @@ object Tunefy : BuildType({
                 echo "GitVersion.SemVer calculado: ${'$'}SEMVER"
                 
                 # Publicar variables para los siguientes steps (sin usar %GitVersion.SemVer%)
-                echo "##teamcity[setParameter name='env.DOCKER_TAG' value='${'$'}SEMVER']"
-                echo "##teamcity[buildNumber '${'$'}SEMVER']"
+                echo "##teamcity[setParameter name='env.RELEASE_VERSION' value='%GitVersion.FullSemVer%']"
+                echo "##teamcity[buildNumber '%env.RELEASE_VERSION%']"
                 
                 rm -rf "${'$'}TMP"
                 echo ">> OK GitVersion"
