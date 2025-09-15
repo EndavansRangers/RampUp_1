@@ -150,7 +150,7 @@ object Tunefy : BuildType({
                 # Enviamos el contenido del frontend al contenedor por stdin
                 # y devolvemos SOLO la carpeta /app/build por stdout.
                 tar -C "${'$'}FE" -cf - . \
-                | docker run --rm -i -w /app node:18-alpine sh -lc '
+                | docker run --rm -i -w /app -e CI=true -e REACT_APP_BACKEND_URL=/api node:18-alpine sh -lc '
                   set -e
                   # Nada de stdout antes del tar final:
                   # - Instalamos tar si hace falta (silenciado)
@@ -213,24 +213,25 @@ object Tunefy : BuildType({
             name = "Create & Deploy Release"
             id = "Create_Deploy_Release"
             scriptContent = """
+                set -eu pipefail
                 OCTO_URL="http://10.20.0.221:8080"
                 OCTO_API_KEY="API-ZLBBY7WFTKNWCWQFQZ27HPZFATYHOJU9"
                 SPACE="Default"
                 PROJECT="Tunefy"
                 ENV="Dev"
-                REL="%GitVersion.SemVer%"
+                REG="%env.DOCKER_REGISTRY%"
+                REL="%env.DOCKER_TAG%"
                 
-                # Crear la release con la MISMA versión de GitVersion
-                docker run --rm octopusdeploy/octo:latest \
+                docker run --rm octopusdeploy/octo:9.1.7 \
                   create-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
-                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
-                  --ignoreIfAlreadyExists
+                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" --ignoreExisting
                 
-                # Desplegar inmediatamente a Dev
-                docker run --rm octopusdeploy/octo:latest \
+                docker run --rm octopusdeploy/octo:9.1.7 \
                   deploy-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
                   --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
-                  --deployTo "${'$'}ENV" --progress --guidedFailure=false
+                  --deployTo "${'$'}ENV" --progress --waitForDeployment \
+                  --variable "BACKEND_IMAGE=${'$'}{REG}/tunefy/backend:${'$'}{REL}" \
+                  --variable "FRONTEND_IMAGE=${'$'}{REG}/tunefy/frontend:${'$'}{REL}"
             """.trimIndent()
         }
     }
