@@ -209,6 +209,30 @@ object Tunefy : BuildType({
                 echo "Frontend publicado como ${'$'}REG/tunefy/frontend:${'$'}VER"
             """.trimIndent()
         }
+        script {
+            name = "Create & Deploy Release"
+            id = "Create_Deploy_Release"
+            scriptContent = """
+                OCTO_URL="http://10.20.0.221:8080"
+                OCTO_API_KEY="API-ZLBBY7WFTKNWCWQFQZ27HPZFATYHOJU9"
+                SPACE="Default"
+                PROJECT="Tunefy"
+                ENV="Dev"
+                REL="%GitVersion.SemVer%"
+                
+                # Crear la release con la MISMA versión de GitVersion
+                docker run --rm octopusdeploy/octo:latest \
+                  create-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
+                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
+                  --ignoreIfAlreadyExists
+                
+                # Desplegar inmediatamente a Dev
+                docker run --rm octopusdeploy/octo:latest \
+                  deploy-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
+                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
+                  --deployTo "${'$'}ENV" --progress --guidedFailure=false
+            """.trimIndent()
+        }
     }
 
     triggers {
