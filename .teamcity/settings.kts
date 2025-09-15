@@ -213,6 +213,7 @@ object Tunefy : BuildType({
             name = "Create & Deploy Release"
             id = "Create_Deploy_Release"
             scriptContent = """
+                set -euo pipefail
                 OCTO_URL="http://10.20.0.221:8080"
                 OCTO_API_KEY="API-ZLBBY7WFTKNWCWQFQZ27HPZFATYHOJU9"
                 SPACE="Default"
@@ -220,17 +221,17 @@ object Tunefy : BuildType({
                 ENV="Dev"
                 REL="%GitVersion.SemVer%"
                 
-                # Crear la release con la MISMA versión de GitVersion
-                docker run --rm octopusdeploy/octo:latest \
+                # 1) Crear release con el mismo número de GitVersion
+                docker run --rm octopusdeploy/octo:9.1.7 \
                   create-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
                   --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
-                  --ignoreIfAlreadyExists
+                  --ignoreExisting
                 
-                # Desplegar inmediatamente a Dev
-                docker run --rm octopusdeploy/octo:latest \
+                # 2) Desplegarla a Dev y esperar resultado
+                docker run --rm octopusdeploy/octo:9.1.7 \
                   deploy-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
                   --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
-                  --deployTo "${'$'}ENV" --progress --guidedFailure=false
+                  --deployTo "${'$'}ENV" --progress --waitForDeployment
             """.trimIndent()
         }
     }
