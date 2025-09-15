@@ -231,7 +231,9 @@ object Tunefy : BuildType({
                 docker run --rm octopusdeploy/octo:9.1.7 \
                   deploy-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
                   --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
-                  --deployTo "${'$'}ENV" --progress --waitForDeployment
+                  --deployTo "${'$'}ENV" --progress --waitForDeployment \
+                    --variable "BACKEND_IMAGE=${'$'}{REG}/tunefy/backend:${'$'}{REL}" \
+                  --variable "FRONTEND_IMAGE=${'$'}{REG}/tunefy/frontend:${'$'}{REL}"
             """.trimIndent()
         }
     }
