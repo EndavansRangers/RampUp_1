@@ -213,7 +213,7 @@ object Tunefy : BuildType({
             name = "Create & Deploy Release"
             id = "Create_Deploy_Release"
             scriptContent = """
-                set -euo pipefail
+                set -eu pipefail
                 OCTO_URL="http://10.20.0.221:8080"
                 OCTO_API_KEY="API-***"
                 SPACE="Default"
