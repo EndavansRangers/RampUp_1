@@ -153,12 +153,18 @@ object Tunefy : BuildType({
                   -e CI=true \
                   -e REACT_APP_BACKEND_URL=/api \
                   -e REACT_APP_FRONTEND_URL= \
+                  -e REACT_APP_GOOGLE_KEY=%env.REACT_APP_GOOGLE_KEY% \
                   node:18-alpine sh -lc '
                     set -e
                     apk add --no-cache tar >/dev/null 2>&1 || true
                     tar -xf - -C /app 1>&2
+                
+                    # (Guard) no imprimimos el valor, solo validamos presencia:
+                    [ -n "${'$'}REACT_APP_GOOGLE_KEY" ] || { echo "REACT_APP_GOOGLE_KEY no está seteada" >&2; exit 4; }
+                
                     npm ci --no-audit --no-fund 1>&2
                     CI= npm run build 1>&2
+                
                     [ -d /app/build ] || { echo "No se generó /app/build" >&2; exit 3; }
                     exec tar -C /app -cf - build
                 ' | tar -C "${'$'}FE" -xvf -
