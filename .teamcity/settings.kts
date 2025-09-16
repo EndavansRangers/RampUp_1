@@ -147,31 +147,21 @@ object Tunefy : BuildType({
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 FE="${'$'}CHECKOUT/frontend"
                 
-                # Enviamos el contenido del frontend al contenedor por stdin
-                # y devolvemos SOLO la carpeta /app/build por stdout.
                 tar -C "${'$'}FE" -cf - . \
                 | docker run --rm -i -w /app \
                   -e CI=true \
                   -e REACT_APP_BACKEND_URL=/api \
-                  -e REACT_APP_API_BASE_URL=/api \
-                  -e REACT_APP_API_URL=/api \
-                  -e REACT_APP_PUBLIC_URL=/ \
-                  -e REACT_APP_BASE_URL=/ \
-                  -e REACT_APP_BASE_PATH=/ \
-                  -e REACT_APP_UI_BASE=/ \
+                  -e REACT_APP_FRONTEND_URL= \
                   node:18-alpine sh -lc '
                     set -e
-                    # Nada de stdout antes del tar final:
                     apk add --no-cache tar >/dev/null 2>&1 || true
                     tar -xf - -C /app 1>&2
                     npm ci --no-audit --no-fund 1>&2
                     CI= npm run build 1>&2
                     [ -d /app/build ] || { echo "No se generó /app/build" >&2; exit 3; }
-                    # ÚNICO stdout válido: el tar de /app/build
                     exec tar -C /app -cf - build
                 ' | tar -C "${'$'}FE" -xvf -
                 
-                # Verificación local
                 ls -la "${'$'}FE/build"
             """.trimIndent()
         }
