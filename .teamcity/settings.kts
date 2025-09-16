@@ -36,6 +36,7 @@ object Tunefy : BuildType({
 
     params {
         param("env.DOCKER_REGISTRY", "10.20.0.150:5000")
+        password("env.REACT_APP_GOOGLE_KEY", "credentialsJSON:c9a68669-d945-4b4e-a29a-f6cffa2b64f6")
         param("env.DOCKER_TAG", "1")
         param("GitVersion.SemVer", "1.1.0")
     }
