@@ -240,9 +240,8 @@ object Tunefy : BuildType({
 
     triggers {
         vcs {
-            triggerRules = "+:refs/heads/develop"
-            branchFilter = ""
-            perCheckinTriggering = true
+            triggerRules = "+:*"
+            branchFilter = "+:refs/heads/develop"
             enableQueueOptimization = false
         }
     }
