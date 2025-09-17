@@ -1,6 +1,6 @@
 const express = require("express");
 const { Pool } = require('pg');
-const { getDbSecret } = require('./infra/awsSecret.js');
+
 const cors = require("cors");
 const { AI21 } = require("@david8128/ai21");
 
@@ -24,6 +24,7 @@ server.use(
 let pool; // será inicializado antes de server.listen()
 
 async function initDb() {
+  const { getDbSecret } = await import('./infra/awsSecret.js');
   const s = await getDbSecret(); // { username, password, host, port, db }
   pool = new Pool({
     user: s.username,
@@ -595,13 +596,8 @@ server.post('/extract-song-artist', async (req, res) => {
 
 if (process.env.NODE_ENV !== 'test') {
   initDb()
-    .then(() => {
-      server.listen(port, () => console.log(`Server is running on port ${port}`));
-    })
-    .catch(err => {
-      console.error("DB init failed:", err);
-      process.exit(1);
-    });
+    .then(() => server.listen(port, () => console.log(`Server is running on port ${port}`)))
+    .catch(err => { console.error('DB init failed:', err); process.exit(1); });
 }
 
 module.exports = server;
