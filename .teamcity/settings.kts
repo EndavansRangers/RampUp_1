@@ -240,7 +240,8 @@ object Tunefy : BuildType({
 
     triggers {
         vcs {
-            branchFilter = ""
+            triggerRules = "+:*"
+            branchFilter = "+:refs/heads/develop"
             enableQueueOptimization = false
         }
     }
