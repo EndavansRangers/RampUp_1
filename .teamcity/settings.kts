@@ -36,6 +36,7 @@ object Tunefy : BuildType({
 
     params {
         param("env.DOCKER_REGISTRY", "10.20.0.150:5000")
+        password("env.REACT_APP_GOOGLE_KEY", "credentialsJSON:c9a68669-d945-4b4e-a29a-f6cffa2b64f6")
         param("env.DOCKER_TAG", "1")
         param("GitVersion.SemVer", "1.1.0")
     }
@@ -147,26 +148,27 @@ object Tunefy : BuildType({
                 CHECKOUT="%teamcity.build.checkoutDir%"
                 FE="${'$'}CHECKOUT/frontend"
                 
-                # Enviamos el contenido del frontend al contenedor por stdin
-                # y devolvemos SOLO la carpeta /app/build por stdout.
                 tar -C "${'$'}FE" -cf - . \
-                | docker run --rm -i -w /app -e CI=true -e REACT_APP_BACKEND_URL=/api node:18-alpine sh -lc '
-                  set -e
-                  # Nada de stdout antes del tar final:
-                  # - Instalamos tar si hace falta (silenciado)
-                  apk add --no-cache tar >/dev/null 2>&1 || true
-                  # - Extraemos el código (logs a stderr)
-                  tar -xf - -C /app 1>&2
-                  # - Dependencias y build (logs a stderr)
-                  npm ci --no-audit --no-fund 1>&2
-                  CI= npm run build 1>&2
-                  # - Validamos que exista /app/build
-                  [ -d /app/build ] || { echo "No se generó /app/build" >&2; exit 3; }
-                  # - ÚNICO stdout válido: el tar de /app/build
-                  exec tar -C /app -cf - build
+                | docker run --rm -i -w /app \
+                  -e CI=true \
+                  -e REACT_APP_BACKEND_URL=/api \
+                  -e REACT_APP_FRONTEND_URL= \
+                  -e REACT_APP_GOOGLE_KEY=%env.REACT_APP_GOOGLE_KEY% \
+                  node:18-alpine sh -lc '
+                    set -e
+                    apk add --no-cache tar >/dev/null 2>&1 || true
+                    tar -xf - -C /app 1>&2
+                
+                    # (Guard) no imprimimos el valor, solo validamos presencia:
+                    [ -n "${'$'}REACT_APP_GOOGLE_KEY" ] || { echo "REACT_APP_GOOGLE_KEY no está seteada" >&2; exit 4; }
+                
+                    npm ci --no-audit --no-fund 1>&2
+                    CI= npm run build 1>&2
+                
+                    [ -d /app/build ] || { echo "No se generó /app/build" >&2; exit 3; }
+                    exec tar -C /app -cf - build
                 ' | tar -C "${'$'}FE" -xvf -
                 
-                # Verificación local
                 ls -la "${'$'}FE/build"
             """.trimIndent()
         }
