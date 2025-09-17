@@ -42,7 +42,7 @@ object Tunefy : BuildType({
     }
 
     vcs {
-        root(DslContext.settingsRoot)
+        root(DslContext.settingsRoot, "+:refs/heads/develop")
     }
 
     steps {
