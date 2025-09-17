@@ -1,5 +1,6 @@
 const express = require("express");
 const { Pool } = require('pg');
+const { getDbSecret } = require('./infra/awsSecret.js');
 const cors = require("cors");
 const { AI21 } = require("@david8128/ai21");
 
@@ -20,13 +21,19 @@ server.use(
   })
 );
 
-const pool = new Pool({
-  user:     process.env.PGUSER,
-  host:     process.env.PGHOST,
-  database: process.env.PGDATABASE || process.env.PGDB,
-  password: process.env.PGPASSWORD || process.env.PGPASS,
-  port:     Number(process.env.PGPORT || 5432),
-});
+let pool; // será inicializado antes de server.listen()
+
+async function initDb() {
+  const s = await getDbSecret(); // { username, password, host, port, db }
+  pool = new Pool({
+    user: s.username,
+    host: s.host,
+    database: s.db,
+    password: s.password,
+    port: Number(s.port || 5432),
+    ssl: false
+  });
+}
 
 // Health check endpoint
 server.get("/health", async (req, res) => {
@@ -587,7 +594,14 @@ server.post('/extract-song-artist', async (req, res) => {
 });
 
 if (process.env.NODE_ENV !== 'test') {
-  server.listen(port, () => console.log(`Server is running on port ${port}`));
+  initDb()
+    .then(() => {
+      server.listen(port, () => console.log(`Server is running on port ${port}`));
+    })
+    .catch(err => {
+      console.error("DB init failed:", err);
+      process.exit(1);
+    });
 }
 
 module.exports = server;

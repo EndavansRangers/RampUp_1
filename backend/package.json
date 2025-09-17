@@ -20,6 +20,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-secrets-manager": "^3.890.0",
     "@david8128/ai21": "^1.2.0",
     "axios": "^1.6.3",
     "cors": "^2.8.5",
