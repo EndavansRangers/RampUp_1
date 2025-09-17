@@ -42,7 +42,10 @@ object Tunefy : BuildType({
     }
 
     vcs {
-        root(DslContext.settingsRoot, "+:refs/heads/develop")
+        root(DslContext.settingsRoot)
+
+        checkoutMode = CheckoutMode.ON_AGENT
+        cleanCheckout = true
     }
 
     steps {
@@ -240,8 +243,6 @@ object Tunefy : BuildType({
 
     triggers {
         vcs {
-            triggerRules = "+:*"
-            branchFilter = "+:refs/heads/develop"
             enableQueueOptimization = false
         }
     }
