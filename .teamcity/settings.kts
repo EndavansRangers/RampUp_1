@@ -42,7 +42,7 @@ object Tunefy : BuildType({
     }
 
     vcs {
-        root(DslContext.settingsRoot)
+        root(DslContext.settingsRoot, "+:refs/heads/develop")
     }
 
     steps {
@@ -240,7 +240,7 @@ object Tunefy : BuildType({
 
     triggers {
         vcs {
-            triggerRules = "+:*"
+            triggerRules = "+:refs/heads/develop"
             branchFilter = ""
             perCheckinTriggering = true
             enableQueueOptimization = false
