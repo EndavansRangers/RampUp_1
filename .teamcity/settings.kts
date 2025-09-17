@@ -240,7 +240,6 @@ object Tunefy : BuildType({
 
     triggers {
         vcs {
-            triggerRules = "+:*"
             branchFilter = ""
             perCheckinTriggering = true
             enableQueueOptimization = false
