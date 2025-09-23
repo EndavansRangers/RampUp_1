@@ -7,14 +7,9 @@ terraform {
     }
   }
   backend "s3" {
-    bucket         = "tunefy-tf-state"      
-    key            = "network/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "tunefy-tf-locks"
-    encrypt        = true
+    bucket       = "tunefy-tf-state"          # <- tu bucket
+    key          = "network/terraform.tfstate"
+    region       = "us-east-1"                # <- región REAL del bucket
+    use_lockfile = true                       # <--- nuevo
   }
-}
-
-provider "aws" {
-  region = var.region
 }
