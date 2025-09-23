@@ -1,11 +1,11 @@
-# O creamos la zona pública...
+#if we create apublic zone
 resource "aws_route53_zone" "root" {
   count = var.create_zone ? 1 : 0
   name  = var.root_domain
   tags  = merge(local.common_tags, { Name = "${local.name}-zone" })
 }
 
-# ...o usamos una existente
+# If we create a private zone
 data "aws_route53_zone" "root" {
   count        = var.create_zone ? 0 : 1
   name         = var.root_domain
