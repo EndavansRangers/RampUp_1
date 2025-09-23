@@ -1,6 +1,6 @@
 variable "project" { type = string }
-variable "env"     { type = string } # "dev" | "prod"
-variable "region"  { type = string }
+variable "env" { type = string } # "dev" | "prod"
+variable "region" { type = string }
 
 variable "azs" {
   description = "AZs to use"
@@ -19,6 +19,6 @@ variable "nat_per_az" {
 }
 
 variable "tags" {
-  type = map(string)
+  type    = map(string)
   default = {}
 }
