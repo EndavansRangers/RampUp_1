@@ -1,0 +1,15 @@
+project     = "tunefy"
+region      = "us-east-1"
+env         = "dev"   # o "prod"
+
+# Base repos (we add  -dev/-prod )
+repos       = ["tunefy-frontend", "tunefy-backend"]
+
+# Dominio raíz (si usarás Route53 público). Si NO administras ese dominio en Route53,
+# pon create_zone = true y luego delega los NS en tu registrador.
+root_domain = "midominio.com"
+create_zone = false
+
+tags = {
+  Owner = "platform"
+}
