@@ -11,3 +11,7 @@ infra/*.sh
 .vagrant/
 
 deploy/
+
+#terraform
+
+.terraform/
