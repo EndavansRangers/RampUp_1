@@ -37,6 +37,4 @@ resource "aws_lb_listener" "cp_6443" {
 }
 
 
-output "control_plane_endpoint" {
-  value = aws_lb.cp.dns_name
-}
+

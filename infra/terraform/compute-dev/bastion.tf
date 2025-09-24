@@ -9,4 +9,3 @@ resource "aws_instance" "bastion" {
   tags = merge(local.common_tags, { Name = "${local.name}-bastion" })
 }
 
-output "bastion_public_ip" { value = aws_instance.bastion.public_ip }

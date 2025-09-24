@@ -69,5 +69,3 @@ resource "aws_instance" "octopus" {
   tags = merge(local.common_tags, { Name = "${local.name}-octopus" })
 }
 
-output "teamcity_private_ip" { value = aws_instance.teamcity.private_ip }
-output "octopus_private_ip"  { value = aws_instance.octopus.private_ip }
