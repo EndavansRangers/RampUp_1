@@ -41,4 +41,7 @@ variable "oc_instance_type" {
 # IP for bastion SG (CIDR /32)
 variable "allowed_ssh_cidr" { type = string } 
 
-variable "tags" { type = map(string); default = {} }
+variable "tags" {
+    type = map(string)
+    default = {}
+}
