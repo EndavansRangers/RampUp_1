@@ -19,8 +19,11 @@ EOF
     associate_public_ip_address = false
     security_groups             = [aws_security_group.cp.id]
   }
-  tag_specifications { resource_type = "instance" tags = merge(local.common_tags, { Name = "${local.name}-cp" }) }
-}
+  tag_specifications {
+    resource_type = "instance"
+    tags = merge(local.common_tags, { Name = "${local.name}-cp" })
+    }
+
 
 # ASG CP (1 node)
 resource "aws_autoscaling_group" "cp" {
@@ -59,7 +62,10 @@ EOF
     associate_public_ip_address = false
     security_groups             = [aws_security_group.wk.id]
   }
-  tag_specifications { resource_type = "instance" tags = merge(local.common_tags, { Name = "${local.name}-wk" }) }
+  tag_specifications {
+    resource_type = "instance"
+    tags          = merge(local.common_tags, { Name = "${local.name}-wk" })
+    }
 }
 
 # ASG Worker (1 nodo)
