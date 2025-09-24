@@ -23,6 +23,7 @@ EOF
     resource_type = "instance"
     tags = merge(local.common_tags, { Name = "${local.name}-cp" })
     }
+}
 
 
 # ASG CP (1 node)
@@ -37,11 +38,21 @@ resource "aws_autoscaling_group" "cp" {
     id      = aws_launch_template.cp.id
     version = "$Latest"
   }
-  tags = [
-    { key = "Name", value = "${local.name}-cp", propagate_at_launch = true },
-    { key = "Project", value = var.project, propagate_at_launch = true },
-    { key = "Env", value = var.env, propagate_at_launch = true }
-  ]
+  tag {
+    key                 = "Name"
+    value               = "${local.name}-cp"
+    propagate_at_launch = true
+  }
+  tag {
+    key                 = "Project"
+    value               = var.project
+    propagate_at_launch = true
+  }
+  tag {
+    key                 = "Env"
+    value               = var.env
+    propagate_at_launch = true
+  }
 }
 
 # Launch Template Worker
@@ -80,9 +91,19 @@ resource "aws_autoscaling_group" "wk" {
     id      = aws_launch_template.wk.id
     version = "$Latest"
   }
-  tags = [
-    { key = "Name", value = "${local.name}-wk", propagate_at_launch = true },
-    { key = "Project", value = var.project, propagate_at_launch = true },
-    { key = "Env", value = var.env, propagate_at_launch = true }
-  ]
+  tag {
+    key                 = "Name"
+    value               = "${local.name}-wk"
+    propagate_at_launch = true
+  }
+  tag {
+    key                 = "Project"
+    value               = var.project
+    propagate_at_launch = true
+  }
+  tag {
+    key                 = "Env"
+    value               = var.env
+    propagate_at_launch = true
+  }
 }

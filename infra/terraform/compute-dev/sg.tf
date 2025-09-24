@@ -10,7 +10,12 @@ resource "aws_security_group" "bastion" {
     protocol         = "tcp"
     cidr_blocks      = [var.allowed_ssh_cidr]
   }
-  egress { from_port = 0, to_port = 0, protocol = "-1", cidr_blocks = ["0.0.0.0/0"] }
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
   tags = merge(local.common_tags, { Name = "${local.name}-bastion-sg" })
 }
 
@@ -58,22 +63,25 @@ resource "aws_security_group" "cp" {
     }
 
   # scheduler/controller-manager (CP intern)
-  ingress {from_port = 10257
-  to_port = 10257
-  protocol = "tcp"
-  self = true
+  ingress {
+    from_port = 10257
+    to_port = 10257
+    protocol = "tcp"
+    self = true
   }
-  ingress {from_port = 10259
-  to_port = 10259
-  protocol = "tcp"
-  self = true 
-  }
+  ingress {
+    from_port = 10259
+    to_port = 10259
+    protocol = "tcp"
+    self = true 
+    }
 
-  egress {from_port = 0
-  to_port = 0
-  protocol = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
-  }
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    }
   tags = merge(local.common_tags, { Name = "${local.name}-cp-sg" })
 }
 
@@ -92,18 +100,20 @@ resource "aws_security_group" "wk" {
     }
 
   # kubelet 10250 from CP
-  ingress {from_port = 10250
-  to_port = 10250
-  protocol = "tcp"
-  security_groups = [aws_security_group.cp.id]
-  }
+  ingress {
+    from_port = 10250
+    to_port = 10250
+    protocol = "tcp"
+    security_groups = [aws_security_group.cp.id]
+    }
 
   # NodePort 
-  ingress {from_port = 30000
-  to_port = 32767
-  protocol = "tcp"
-  self = true 
-  }
+  ingress {
+    from_port = 30000
+    to_port = 32767
+    protocol = "tcp"
+    self = true 
+    }
 
   egress {
     from_port = 0
@@ -146,10 +156,11 @@ resource "aws_security_group" "cicd" {
     security_groups = [aws_security_group.bastion.id]
     }  # Octopus Tentacle
 
-  egress {from_port = 0
-  to_port = 0
-  protocol = "-1"
-  cidr_blocks = ["0.0.0.0/0"]
-  }
+  egress {
+    from_port = 0
+    to_port = 0
+    protocol = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    }
   tags = merge(local.common_tags, { Name = "${local.name}-cicd-sg" })
 }
