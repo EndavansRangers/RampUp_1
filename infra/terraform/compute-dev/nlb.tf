@@ -29,8 +29,13 @@ resource "aws_lb_listener" "cp_6443" {
   load_balancer_arn = aws_lb.cp.arn
   port              = 6443
   protocol          = "TCP"
-  default_action { type = "forward"; target_group_arn = aws_lb_target_group.cp_6443.arn }
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.cp_6443.arn
+  }
 }
+
 
 output "control_plane_endpoint" {
   value = aws_lb.cp.dns_name
