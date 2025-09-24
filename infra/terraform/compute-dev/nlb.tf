@@ -2,7 +2,7 @@ resource "aws_lb" "cp" {
   name               = "${local.name}-cp-nlb"
   load_balancer_type = "network"
   internal           = true
-  subnets            = var.private_subnet_ids
+  subnets            = local.private_subnet_ids
   tags               = merge(local.common_tags, { Name = "${local.name}-cp-nlb" })
 }
 
@@ -10,7 +10,7 @@ resource "aws_lb_target_group" "cp_6443" {
   name        = "${local.name}-apiserver"
   port        = 6443
   protocol    = "TCP"
-  vpc_id      = var.vpc_id
+  vpc_id      = local.vpc_id
   target_type = "instance"
   health_check {
     protocol = "TCP"

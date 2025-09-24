@@ -47,25 +47,25 @@ resource "aws_iam_instance_profile" "octopus" {
 
 # TeamCity in private subnet
 resource "aws_instance" "teamcity" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.tc_instance_type
-  subnet_id              = var.private_subnet_ids[0]
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.tc_instance_type
+  subnet_id                   = local.private_subnet_ids[0]
   associate_public_ip_address = false
-  key_name               = var.key_name
-  iam_instance_profile   = aws_iam_instance_profile.teamcity.name
-  vpc_security_group_ids = [aws_security_group.cicd.id]
-  tags = merge(local.common_tags, { Name = "${local.name}-teamcity" })
+  key_name                    = var.key_name
+  iam_instance_profile        = aws_iam_instance_profile.teamcity.name
+  vpc_security_group_ids      = [aws_security_group.cicd.id]
+  tags                        = merge(local.common_tags, { Name = "${local.name}-teamcity" })
 }
 
 # Octopus in private subnet
 resource "aws_instance" "octopus" {
-  ami                    = data.aws_ami.ubuntu.id
-  instance_type          = var.oc_instance_type
-  subnet_id              = var.private_subnet_ids[0]
+  ami                         = data.aws_ami.ubuntu.id
+  instance_type               = var.oc_instance_type
+  subnet_id                   = local.private_subnet_ids[0]
   associate_public_ip_address = false
-  key_name               = var.key_name
-  iam_instance_profile   = aws_iam_instance_profile.octopus.name
-  vpc_security_group_ids = [aws_security_group.cicd.id]
-  tags = merge(local.common_tags, { Name = "${local.name}-octopus" })
+  key_name                    = var.key_name
+  iam_instance_profile        = aws_iam_instance_profile.octopus.name
+  vpc_security_group_ids      = [aws_security_group.cicd.id]
+  tags                        = merge(local.common_tags, { Name = "${local.name}-octopus" })
 }
 
