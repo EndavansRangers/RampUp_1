@@ -19,3 +19,18 @@ data "aws_ami" "ubuntu" {
   }
 }
 
+data "terraform_remote_state" "network" {
+  backend = "s3"
+  config = {
+    bucket = "tunefy-tf-state" # <- tu bucket
+    key    = "env:/${var.env}/network/terraform.tfstate"
+    region = var.region
+  }
+}
+
+locals {
+  vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
+  public_subnet_ids  = data.terraform_remote_state.network.outputs.public_subnet_ids
+  private_subnet_ids = data.terraform_remote_state.network.outputs.private_subnet_ids
+}
+

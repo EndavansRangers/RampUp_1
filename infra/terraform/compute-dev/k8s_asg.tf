@@ -4,10 +4,14 @@ resource "aws_launch_template" "cp" {
   image_id      = data.aws_ami.ubuntu.id
   instance_type = var.cp_instance_type
   key_name      = var.key_name
-  iam_instance_profile { name = var.nodes_instance_profile_name }
+
+  iam_instance_profile {
+    name = var.nodes_instance_profile_name
+  }
+
+  
   vpc_security_group_ids = [aws_security_group.cp.id]
 
-  # Cloud-init minimal (hostname); kube* (to do)
   user_data = base64encode(<<EOF
 #cloud-config
 preserve_hostname: false
@@ -15,14 +19,10 @@ hostname: ${local.name}-cp
 EOF
   )
 
-  network_interfaces {
-    associate_public_ip_address = false
-    security_groups             = [aws_security_group.cp.id]
-  }
   tag_specifications {
     resource_type = "instance"
-    tags = merge(local.common_tags, { Name = "${local.name}-cp" })
-    }
+    tags          = merge(local.common_tags, { Name = "${local.name}-cp" })
+  }
 }
 
 
@@ -32,7 +32,7 @@ resource "aws_autoscaling_group" "cp" {
   max_size                  = 1
   min_size                  = 1
   desired_capacity          = 1
-  vpc_zone_identifier       = var.private_subnet_ids
+  vpc_zone_identifier       = local.private_subnet_ids
   health_check_type         = "EC2"
   launch_template {
     id      = aws_launch_template.cp.id
@@ -61,22 +61,25 @@ resource "aws_launch_template" "wk" {
   image_id      = data.aws_ami.ubuntu.id
   instance_type = var.wk_instance_type
   key_name      = var.key_name
-  iam_instance_profile { name = var.nodes_instance_profile_name }
+
+  iam_instance_profile {
+    name = var.nodes_instance_profile_name
+  }
+
+  
   vpc_security_group_ids = [aws_security_group.wk.id]
+
   user_data = base64encode(<<EOF
 #cloud-config
 preserve_hostname: false
 hostname: ${local.name}-wk
 EOF
   )
-  network_interfaces {
-    associate_public_ip_address = false
-    security_groups             = [aws_security_group.wk.id]
-  }
+
   tag_specifications {
     resource_type = "instance"
     tags          = merge(local.common_tags, { Name = "${local.name}-wk" })
-    }
+  }
 }
 
 # ASG Worker (1 nodo)
@@ -85,7 +88,7 @@ resource "aws_autoscaling_group" "wk" {
   max_size                  = 1
   min_size                  = 1
   desired_capacity          = 1
-  vpc_zone_identifier       = var.private_subnet_ids
+  vpc_zone_identifier       = local.private_subnet_ids
   health_check_type         = "EC2"
   launch_template {
     id      = aws_launch_template.wk.id
