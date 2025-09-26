@@ -1,0 +1,13 @@
+project: tunefy
+env: dev
+timezone: "Etc/UTC"
+
+# K8s versiones
+kube_version: "1.30"         
+calico_version: "v3.27.2"
+
+# Endpoint NLB del API server (output C3)
+control_plane_endpoint: "tunefy-dev-cp-nlb-c77324b383d150a0.elb.us-east-1.amazonaws.com"
+
+# Pod CIDR para Calico (no choca con 10.20.0.0/16)
+pod_cidr: "192.168.0.0/16"
