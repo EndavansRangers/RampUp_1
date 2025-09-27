@@ -1,0 +1,175 @@
+# Detecta si ya está inicializado
+- name: Check if admin.conf exists (cluster already initialized)
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: admin_conf
+
+# Ensure kubeadm config directory
+- name: Ensure /etc/kubernetes/kubeadm exists
+  file:
+    path: /etc/kubernetes/kubeadm
+    state: directory
+    mode: "0755"
+
+# Generate kubeadm config from template
+- name: Generate kubeadm config
+  template:
+    src: kubeadm-config.yaml.j2
+    dest: /etc/kubernetes/kubeadm/config.yaml
+    mode: "0644"
+
+# Ejecuta init SIN la fase de espera (kubeadm suele esperar contra controlPlaneEndpoint)
+- name: kubeadm init (skip wait-control-plane; we will wait ourselves)
+  command: kubeadm init --config /etc/kubernetes/kubeadm/config.yaml --skip-phases=wait-control-plane
+  args:
+    creates: /etc/kubernetes/admin.conf
+  when: not admin_conf.stat.exists
+
+# Copia kubeconfig para root (útil para kubectl local)
+- name: Ensure /root/.kube exists
+  file:
+    path: /root/.kube
+    state: directory
+    mode: "0700"
+
+- name: Copy admin.conf to root kubeconfig
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    remote_src: true
+    mode: "0600"
+
+# Espera al API en localhost (siempre debe responder)
+- name: Wait for API server (localhost)
+  uri:
+    url: https://127.0.0.1:6443/healthz
+    method: GET
+    status_code: 200
+    validate_certs: no
+  register: api_local
+  retries: 90
+  delay: 4
+  until: api_local.status == 200
+
+# Lee el kubeadm config para detectar controlPlaneEndpoint (si existe)
+- name: Read kubeadm config
+  slurp:
+    src: /etc/kubernetes/kubeadm/config.yaml
+  register: kubeadm_cfg_raw
+
+- name: Parse kubeadm config (multi-doc YAML)
+  set_fact:
+    kubeadm_docs: "{{ kubeadm_cfg_raw.content | b64decode | from_yaml_all | list }}"
+
+- name: Extract controlPlaneEndpoint (if any)
+  set_fact:
+    control_plane_endpoint: "{{ (kubeadm_docs | selectattr('kind','equalto','ClusterConfiguration') | list | first).controlPlaneEndpoint | default('') }}"
+
+# Si hay controlPlaneEndpoint, espera también contra ese DNS:PORT (para pillar problemas de NLB/SG)
+# - name: Wait for TCP 6443 on controlPlaneEndpoint (via NLB)
+#   wait_for:
+#     host: "{{ (control_plane_endpoint | regex_replace(':.*$', '')) }}"  # quita :6443 si viene incluido
+#     port: 6443
+#     timeout: 360
+#   when: control_plane_endpoint | length > 0
+
+# (Opcional) Muestra a qué endpoints se validó
+- name: Show API health endpoints used
+  debug:
+    msg:
+      - "API localhost: https://127.0.0.1:6443/healthz => {{ api_local.status | default('n/a') }}"
+      - "API controlPlaneEndpoint: https://{{ control_plane_endpoint }}/healthz => {{ api_ext.status | default('skipped') }}"
+
+# Generate join command for worker nodes - simplified approach
+- name: Create bootstrap token and join command
+  shell: |
+    # Use local kubectl config to avoid NLB issues during token creation
+    cp /root/.kube/config /tmp/local-config
+    sed -i "s|tunefy-dev-cp-nlb.*amazonaws.com|127.0.0.1|g" /tmp/local-config
+    export KUBECONFIG=/tmp/local-config
+    
+    # Create namespace
+    kubectl create namespace kube-public --dry-run=client -o yaml | kubectl apply -f - || true
+    
+    # Generate token
+    TOKEN_ID=$(openssl rand -hex 3)
+    TOKEN_SECRET=$(openssl rand -hex 8) 
+    TOKEN="${TOKEN_ID}.${TOKEN_SECRET}"
+    
+    # Create token secret
+    kubectl create secret generic bootstrap-token-${TOKEN_ID} \
+      --from-literal=token-id=${TOKEN_ID} \
+      --from-literal=token-secret=${TOKEN_SECRET} \
+      --from-literal=usage-bootstrap-authentication=true \
+      --from-literal=usage-bootstrap-signing=true \
+      --namespace=kube-system \
+      --type=bootstrap.kubernetes.io/token || true
+    
+    # Get CA cert hash
+    CA_HASH=$(openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //')
+    
+    # Create cluster-info ConfigMap with NLB endpoint
+    kubectl config view --raw --minify | sed "s|127.0.0.1|tunefy-dev-cp-nlb-c77324b383d150a0.elb.us-east-1.amazonaws.com|g" > /tmp/cluster-config
+    kubectl create configmap cluster-info --from-file=kubeconfig=/tmp/cluster-config --namespace=kube-public --dry-run=client -o yaml | kubectl apply -f -
+    
+    # Fix RBAC: Allow anonymous access to cluster-info ConfigMap (required for kubeadm join)
+    cat <<EOF | kubectl apply -f -
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRole
+    metadata:
+      name: cluster-info-reader
+    rules:
+    - apiGroups: [""]
+      resources: ["configmaps"]
+      resourceNames: ["cluster-info"]
+      verbs: ["get"]
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: cluster-info-anonymous
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: cluster-info-reader
+    subjects:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: User
+      name: system:anonymous
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: RoleBinding
+    metadata:
+      name: kubeadm:bootstrap-signer-clusterinfo
+      namespace: kube-public
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: Role
+      name: kubeadm:bootstrap-signer-clusterinfo
+    subjects:
+    - apiGroup: rbac.authorization.k8s.io
+      kind: User
+      name: system:anonymous
+    ---
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: Role
+    metadata:
+      name: kubeadm:bootstrap-signer-clusterinfo
+      namespace: kube-public
+    rules:
+    - apiGroups: [""]
+      resources: ["configmaps"]
+      verbs: ["get"]
+    EOF
+    
+    echo "kubeadm join tunefy-dev-cp-nlb-c77324b383d150a0.elb.us-east-1.amazonaws.com:6443 --token ${TOKEN} --discovery-token-ca-cert-hash sha256:${CA_HASH}"
+  become: yes
+  register: k8s_join_cmd_result
+
+- name: Set join command as fact
+  set_fact:
+    k8s_join_cmd: "{{ k8s_join_cmd_result.stdout }}"
+
+- name: Show join command
+  debug:
+    msg: "Join command: {{ k8s_join_cmd }}"

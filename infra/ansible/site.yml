@@ -1,0 +1,36 @@
+- name: Same base (all machines privates and bastion)
+  hosts: all
+  become: true
+  roles:
+    - common
+
+- name: Install containerd and kube* (nodes K8s)
+  hosts: k8s
+  become: true
+  roles:
+    - containerd
+    - kubernetes
+
+- name: Initialice control plane (kubeadm init + Calico)
+  hosts: cp
+  become: true
+  roles:
+    - control-plane
+
+- name: put workers
+  hosts: workers
+  become: true
+  roles:
+    - worker
+
+- name: Docker + TeamCity
+  hosts: teamcity
+  become: true
+  roles:
+    - teamcity
+
+- name: Docker + Octopus (with MSSQL)
+  hosts: octopus
+  become: true
+  roles:
+    - octopus

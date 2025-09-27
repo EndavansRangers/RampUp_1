@@ -33,7 +33,7 @@ resource "aws_security_group" "cp" {
     security_groups = [aws_security_group.bastion.id]
   }
 
-  # kube-apiserver 6443 from NLB and form workers/CP (self)
+  # kube-apiserver 6443 from NLB and self (CP)
   ingress {
     from_port = 6443
     to_port   = 6443
@@ -41,10 +41,11 @@ resource "aws_security_group" "cp" {
     self      = true
   }
   ingress {
-    from_port = 6443
-    to_port   = 6443
-    protocol  = "tcp"
-  } # NLB is asocieted by ENIs 
+    from_port   = 6443
+    to_port     = 6443
+    protocol    = "tcp"
+    cidr_blocks = [local.vpc_cidr]
+  } # NLB ENIs dentro de la VPC 
 
   # etcd (CP<->CP)
   ingress {
@@ -163,4 +164,15 @@ resource "aws_security_group" "cicd" {
     cidr_blocks = ["0.0.0.0/0"]
   }
   tags = merge(local.common_tags, { Name = "${local.name}-cicd-sg" })
+}
+
+# Regla adicional: Workers -> CP API server (6443)
+resource "aws_security_group_rule" "wk_to_cp_api" {
+  type                     = "ingress"
+  from_port                = 6443
+  to_port                  = 6443
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.wk.id
+  security_group_id        = aws_security_group.cp.id
+  description              = "Workers to CP API server"
 }

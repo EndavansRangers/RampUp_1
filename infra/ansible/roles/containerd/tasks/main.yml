@@ -1,0 +1,230 @@
+# roles/containerd/tasks/main.yml
+
+# ---------- 0) PRE-REQS & LIMPIEZA ----------
+- name: Ensure base tools
+  apt:
+    update_cache: true
+    name: [ca-certificates, curl, gnupg]
+    state: present
+
+- name: Remove snap containerd if present (safe)
+  shell: |
+    if command -v snap >/dev/null 2>&1 && snap list 2>/dev/null | grep -q '^containerd'; then
+      systemctl stop snap.containerd.* || true
+      snap remove containerd || true
+    fi
+  register: snap_clean
+  failed_when: false
+  changed_when: false
+
+- name: Remove Ubuntu containerd (if present)
+  apt:
+    name: [ "containerd" ]
+    state: absent
+    purge: true
+  register: removed_containerd
+  failed_when: false
+
+# Try Ubuntu repo containerd first (simpler approach)
+- name: Install containerd from Ubuntu repo
+  apt:
+    update_cache: true
+    name:
+      - containerd
+      - runc
+      - cri-tools
+    state: present
+  register: containerd_ubuntu_install
+  failed_when: false
+
+# If Ubuntu repo failed, try Docker repo
+- name: Add Docker GPG key (if Ubuntu install failed)
+  shell: |
+    install -m 0755 -d /etc/apt/keyrings
+    timeout 30 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    chmod a+r /etc/apt/keyrings/docker.gpg
+  args:
+    creates: /etc/apt/keyrings/docker.gpg
+  when: containerd_ubuntu_install is failed
+
+- name: Add Docker apt repo (if Ubuntu install failed)
+  copy:
+    dest: /etc/apt/sources.list.d/docker.list
+    content: |
+      deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+  when: containerd_ubuntu_install is failed
+
+- name: Install containerd from Docker repo (if Ubuntu install failed)
+  apt:
+    update_cache: true
+    name:
+      - containerd.io
+      - runc
+      - cri-tools
+    state: present
+  when: containerd_ubuntu_install is failed
+
+# ---------- 4) CONFIGURACIÓN DE CONTAINERD ----------
+- name: Ensure /etc/containerd exists
+  file:
+    path: /etc/containerd
+    state: directory
+    mode: "0755"
+
+- name: Write minimal containerd config (CRI v1 + runc v2 + systemd cgroups + pause:3.9)
+  copy:
+    dest: /etc/containerd/config.toml
+    mode: "0644"
+    content: |
+      version = 2
+      disabled_plugins = []
+      [plugins."io.containerd.grpc.v1.cri"]
+        sandbox_image = "registry.k8s.io/pause:3.9"
+        [plugins."io.containerd.grpc.v1.cri".cni]
+          bin_dir = "/usr/lib/cni"
+          conf_dir = "/etc/cni/net.d"
+        [plugins."io.containerd.grpc.v1.cri".containerd]
+          default_runtime_name = "runc"
+          [plugins."io.containerd.grpc.v1.cri".containerd.runtimes]
+            [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc]
+              runtime_type = "io.containerd.runc.v2"
+              [plugins."io.containerd.grpc.v1.cri".containerd.runtimes.runc.options]
+                SystemdCgroup = true
+
+- name: Ensure CNI conf dir exists (/etc/cni/net.d)
+  file:
+    path: /etc/cni/net.d
+    state: directory
+    mode: "0755"
+
+# ---------- 5) OVERRIDE SYSTEMD + UNMASK + RELOAD ----------
+- name: Ensure containerd systemd drop-in directory exists
+  file:
+    path: /etc/systemd/system/containerd.service.d
+    state: directory
+    mode: "0755"
+
+- name: Write systemd override for containerd (use config.toml)
+  copy:
+    dest: /etc/systemd/system/containerd.service.d/override.conf
+    mode: "0644"
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=/usr/bin/containerd --config /etc/containerd/config.toml
+
+- name: Unmask containerd service (safe)
+  command: systemctl unmask containerd
+  register: unmask_svc
+  failed_when: false
+  changed_when: unmask_svc.stdout is search('Removed')
+
+- name: Unmask containerd socket (safe)
+  command: systemctl unmask containerd.socket
+  register: unmask_sock
+  failed_when: false
+  changed_when: unmask_sock.stdout is search('Removed')
+
+- name: Daemon-reload
+  systemd:
+    daemon_reload: true
+
+# ---------- 6) GARANTIZAR EXISTENCIA DE LA UNIDAD ----------
+- name: Check if containerd unit exists
+  shell: systemctl list-unit-files | grep -E '^containerd\.service'
+  register: unit_check
+  changed_when: false
+  failed_when: false
+
+- name: Create minimal containerd unit if missing (fallback)
+  copy:
+    dest: /etc/systemd/system/containerd.service
+    mode: "0644"
+    content: |
+      [Unit]
+      Description=containerd container runtime
+      Documentation=https://containerd.io
+      After=network.target local-fs.target
+
+      [Service]
+      ExecStart=/usr/bin/containerd --config /etc/containerd/config.toml
+      Type=notify
+      Delegate=yes
+      KillMode=process
+      Restart=always
+      RestartSec=5
+      LimitNPROC=infinity
+      LimitCORE=infinity
+      LimitNOFILE=infinity
+      TasksMax=infinity
+      OOMScoreAdjust=-999
+
+      [Install]
+      WantedBy=multi-user.target
+  when: unit_check.rc != 0
+
+- name: Daemon-reload after creating unit (if any)
+  systemd:
+    daemon_reload: true
+  when: unit_check.rc != 0
+
+# ---------- 7) START/ENABLE + WAIT SOCKET ----------
+- name: Enable containerd at boot
+  systemd:
+    name: containerd
+    enabled: true
+
+- name: Start/restart containerd now (with error handling)
+  block:
+    - name: Start/restart containerd now
+      systemd:
+        name: containerd
+        state: restarted
+  rescue:
+    - name: Get containerd service status on failure
+      command: systemctl status containerd.service --no-pager
+      register: containerd_status
+      changed_when: false
+
+    - name: Get containerd journal logs on failure
+      command: journalctl -u containerd.service --no-pager -n 50
+      register: containerd_journal
+      changed_when: false
+
+    - name: Display failure diagnostics
+      debug:
+        msg:
+          - "ERROR: containerd service failed to start."
+          - "systemctl status containerd.service:"
+          - "{{ containerd_status.stdout_lines }}"
+          - "journalctl -u containerd.service:"
+          - "{{ containerd_journal.stdout_lines }}"
+
+    - name: Fail playbook after diagnostics
+      fail:
+        msg: "containerd service failed to start on {{ inventory_hostname }}. See diagnostics above."
+
+- name: Wait for containerd socket
+  wait_for:
+    path: /run/containerd/containerd.sock
+    state: started
+    timeout: 60
+
+# ---------- 8) DIAGNÓSTICO / VERIFICACIÓN CRI ----------
+- name: Show ExecStart after override
+  command: systemctl show containerd -p ExecStart
+  register: execstart_show
+  changed_when: false
+
+- name: Print ExecStart line
+  debug:
+    var: execstart_show.stdout
+
+- name: Check CRI runtime API version (crictl)
+  command: crictl --runtime-endpoint unix:///run/containerd/containerd.sock version
+  register: crictl_version
+  changed_when: false
+
+- name: Print CRI runtime info
+  debug:
+    var: crictl_version.stdout

@@ -13,8 +13,12 @@ resource "aws_lb_target_group" "cp_6443" {
   vpc_id      = local.vpc_id
   target_type = "instance"
   health_check {
-    protocol = "TCP"
-    port     = "6443"
+    protocol            = "TCP"
+    port                = "6443"
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
+    timeout             = 10
+    interval            = 30
   }
   tags = merge(local.common_tags, { Name = "${local.name}-apiserver" })
 }
