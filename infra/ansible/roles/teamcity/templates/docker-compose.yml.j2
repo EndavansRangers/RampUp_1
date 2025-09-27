@@ -1,0 +1,15 @@
+services:
+  teamcity:
+    image: {{ teamcity_images.server }}
+    restart: always
+    ports:
+      - "{{ teamcity_http_port }}:8111"
+    volumes:
+      - {{ teamcity_dir }}/data:/data/teamcity_server/datadir
+      - {{ teamcity_dir }}/logs:/opt/teamcity/logs
+  agent:
+    image: {{ teamcity_images.agent }}
+    restart: always
+    environment:
+      - SERVER_URL=http://teamcity:8111
+    depends_on: [ teamcity ]

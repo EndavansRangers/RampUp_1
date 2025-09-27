@@ -1,0 +1,39 @@
+- name: Create keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Download K8s repo key
+  get_url:
+    url: "https://pkgs.k8s.io/core:/stable:/v{{ kube_version }}/deb/Release.key"
+    dest: /tmp/kubernetes-release.key
+    timeout: 30
+    mode: '0644'
+
+- name: Add K8s repo key to keyring
+  shell: |
+    gpg --dearmor < /tmp/kubernetes-release.key > /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    chmod a+r /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: K8s repo list
+  copy:
+    dest: /etc/apt/sources.list.d/kubernetes.list
+    content: |
+      deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v{{ kube_version }}/deb/ /
+
+- name: Install kubelet/kubeadm/kubectl
+  apt:
+    update_cache: yes
+    name: "{{ kube_packages }}"
+    state: present
+
+- name: Hold kube packages (dpkg_selections)
+  ansible.builtin.dpkg_selections:
+    name: "{{ item }}"
+    selection: hold
+  loop: "{{ kube_packages }}"
+
+

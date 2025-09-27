@@ -1,0 +1,6 @@
+teamcity_version: "2024.07"
+teamcity_dir: "/srv/teamcity"
+teamcity_http_port: 8111
+teamcity_images:
+  server: "jetbrains/teamcity-server:2024.07"
+  agent:  "jetbrains/teamcity-agent:2024.07"

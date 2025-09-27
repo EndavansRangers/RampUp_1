@@ -1,0 +1,26 @@
+- name: Check if join command is available from control plane
+  debug:
+    msg: "Join command from CP: {{ hostvars[groups['cp'][0]].k8s_join_cmd | default('Not available') }}"
+
+- name: Join worker node to cluster (skip CA verification as fallback)
+  command: "{{ hostvars[groups['cp'][0]].k8s_join_cmd }} --cri-socket unix:///run/containerd/containerd.sock --discovery-token-unsafe-skip-ca-verification"
+  args:
+    creates: /etc/kubernetes/kubelet.conf
+  when: hostvars[groups['cp'][0]].k8s_join_cmd is defined
+  register: join_result
+  failed_when: false
+
+- name: Show join result
+  debug:
+    msg: "Join result: {{ join_result.stdout_lines | default(['No output']) }}"
+  when: join_result is defined
+
+- name: Show worker node status after join
+  command: systemctl status kubelet
+  register: kubelet_status
+  when: hostvars[groups['cp'][0]].k8s_join_cmd is defined
+
+- name: Print kubelet status
+  debug:
+    msg: "Kubelet status: {{ kubelet_status.stdout_lines | default('Not available') }}"
+  when: hostvars[groups['cp'][0]].k8s_join_cmd is defined

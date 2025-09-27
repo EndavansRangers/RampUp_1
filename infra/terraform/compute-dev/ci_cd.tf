@@ -54,6 +54,14 @@ resource "aws_instance" "teamcity" {
   key_name                    = var.key_name
   iam_instance_profile        = aws_iam_instance_profile.teamcity.name
   vpc_security_group_ids      = [aws_security_group.cicd.id]
+  
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 40
+    encrypted   = true
+    tags        = merge(local.common_tags, { Name = "${local.name}-teamcity-root" })
+  }
+  
   tags                        = merge(local.common_tags, { Name = "${local.name}-teamcity" })
 }
 
@@ -66,6 +74,14 @@ resource "aws_instance" "octopus" {
   key_name                    = var.key_name
   iam_instance_profile        = aws_iam_instance_profile.octopus.name
   vpc_security_group_ids      = [aws_security_group.cicd.id]
+  
+  root_block_device {
+    volume_type = "gp3"
+    volume_size = 40
+    encrypted   = true
+    tags        = merge(local.common_tags, { Name = "${local.name}-octopus-root" })
+  }
+  
   tags                        = merge(local.common_tags, { Name = "${local.name}-octopus" })
 }
 
