@@ -15,3 +15,5 @@ deploy/
 #terraform
 
 .terraform/
+
+TROUBLESHOOTING_RESUMEN.txt
