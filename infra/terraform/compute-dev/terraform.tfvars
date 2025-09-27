@@ -1,0 +1,17 @@
+project   = "tunefy"
+region    = "us-east-1"
+env       = "dev"
+key_name  = "tunefy-dev-key"
+
+# VPC:
+#vpc_id             = "vpc-0b435663837d32b12"
+#public_subnet_ids  = ["subnet-0e5eb4fb97b06e06d", "subnet-04fd1e98e18081cc8", "subnet-0bf336d6766af9fa1"]
+#private_subnet_ids = ["subnet-00a4495a3cbe62cdd", "subnet-02515cf41ddd44699", "subnet-05f8876a5c9a7d02a"]
+
+# DNodes:
+nodes_instance_profile_name = "tunefy-dev-nodes"
+
+# Tu IP
+allowed_ssh_cidr = "128.77.67.14/32"
+
+tags = { Owner = "platform" }
