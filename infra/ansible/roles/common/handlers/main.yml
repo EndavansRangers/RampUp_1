@@ -1,0 +1,7 @@
+---
+- name: sysctl reload
+  command: sysctl --system
+
+- name: reboot maybe
+  reboot:
+    reboot_timeout: 600
