@@ -9,7 +9,16 @@ resource "aws_launch_template" "cp" {
     name = var.nodes_instance_profile_name
   }
 
-  
+  block_device_mappings {
+    device_name = "/dev/sda1"
+    ebs {
+      volume_size = 20
+      volume_type = "gp3"
+      encrypted   = true
+      delete_on_termination = true
+    }
+  }
+
   vpc_security_group_ids = [aws_security_group.cp.id]
 
   user_data = base64encode(<<EOF
@@ -53,6 +62,16 @@ resource "aws_autoscaling_group" "cp" {
     value               = var.env
     propagate_at_launch = true
   }
+  tag {
+    key                 = "k8s.io/cluster-autoscaler/enabled"
+    value               = "true"
+    propagate_at_launch = true
+  }
+  tag {
+    key                 = "k8s.io/cluster-autoscaler/${var.cluster_name}"
+    value               = "owned"
+    propagate_at_launch = true
+  }
 }
 
 # Launch Template Worker
@@ -66,7 +85,16 @@ resource "aws_launch_template" "wk" {
     name = var.nodes_instance_profile_name
   }
 
-  
+  block_device_mappings {
+    device_name = "/dev/sda1"
+    ebs {
+      volume_size = 20
+      volume_type = "gp3"
+      encrypted   = true
+      delete_on_termination = true
+    }
+  }
+
   vpc_security_group_ids = [aws_security_group.wk.id]
 
   user_data = base64encode(<<EOF
@@ -107,6 +135,16 @@ resource "aws_autoscaling_group" "wk" {
   tag {
     key                 = "Env"
     value               = var.env
+    propagate_at_launch = true
+  }
+  tag {
+    key                 = "k8s.io/cluster-autoscaler/enabled"
+    value               = "true"
+    propagate_at_launch = true
+  }
+  tag {
+    key                 = "k8s.io/cluster-autoscaler/${var.cluster_name}"
+    value               = "owned"
     propagate_at_launch = true
   }
 }
