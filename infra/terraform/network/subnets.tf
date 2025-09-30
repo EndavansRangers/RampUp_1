@@ -10,7 +10,10 @@ resource "aws_subnet" "public" {
   tags = merge(local.common_tags, {
     Name = "${local.name}-public-${each.value.az}"
     Tier = "public"
+    "kubernetes.io/cluster/${var.project}-${var.env}" = "shared"
+    "kubernetes.io/role/elb" = "1"
   })
+
 }
 
 # Privates
@@ -24,5 +27,8 @@ resource "aws_subnet" "private" {
   tags = merge(local.common_tags, {
     Name = "${local.name}-private-${each.value.az}"
     Tier = "private"
+    "kubernetes.io/cluster/${var.project}-${var.env}" = "shared"
+    "kubernetes.io/role/internal-elb" = "1"
   })
 }
+
