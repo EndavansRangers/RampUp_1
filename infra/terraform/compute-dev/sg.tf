@@ -176,3 +176,24 @@ resource "aws_security_group_rule" "wk_to_cp_api" {
   security_group_id        = aws_security_group.cp.id
   description              = "Workers to CP API server"
 }
+
+# BGP rules for Calico
+resource "aws_security_group_rule" "cp_bgp_from_workers" {
+  type                     = "ingress"
+  from_port                = 179
+  to_port                  = 179
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.wk.id
+  security_group_id        = aws_security_group.cp.id
+  description              = "BGP from workers to control plane"
+}
+
+resource "aws_security_group_rule" "workers_bgp_from_cp" {
+  type                     = "ingress"
+  from_port                = 179
+  to_port                  = 179
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.cp.id
+  security_group_id        = aws_security_group.wk.id
+  description              = "BGP from control plane to workers"
+}
