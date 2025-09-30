@@ -130,11 +130,16 @@
     daemon_reload: true
 
 # ---------- 6) GARANTIZAR EXISTENCIA DE LA UNIDAD ----------
-- name: Check if containerd unit exists
-  shell: systemctl list-unit-files | grep -E '^containerd\.service'
-  register: unit_check
-  changed_when: false
-  failed_when: false
+- name: Check if containerd is already running
+  systemd:
+    name: containerd
+  register: containerd_status
+
+- name: Start containerd only if not running
+  systemd:
+    name: containerd
+    state: started
+  when: containerd_status.status.ActiveState != "active"
 
 - name: Create minimal containerd unit if missing (fallback)
   copy:
