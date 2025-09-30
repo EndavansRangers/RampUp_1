@@ -17,3 +17,5 @@ deploy/
 .terraform/
 
 TROUBLESHOOTING_RESUMEN.txt
+
+docs/
