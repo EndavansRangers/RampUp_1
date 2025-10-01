@@ -108,23 +108,58 @@ step "deploy-helm-frontend" {
     }
 
     action {
-        action_type = "Octopus.HelmChartUpgrade"
+        action_type = "Octopus.Script"
         environments = ["dev"]
         is_required = true
         properties = {
-            Octopus.Action.Helm.ChartDirectory = "charts/frontend"
-            Octopus.Action.Helm.ClientVersion = "V3"
-            Octopus.Action.Helm.CustomHelmExecutable = "helm"
-            Octopus.Action.Helm.CustomValueFiles = "values-dev.yaml"
-            Octopus.Action.Helm.Namespace = "tunefy-dev"
-            Octopus.Action.Helm.ReleaseName = "tunefy-frontend"
-            Octopus.Action.Helm.ResetValues = "False"
-            Octopus.Action.Helm.Timeout = "300"
-            Octopus.Action.Helm.YamlValues = "image:\n  tag: \"#{Octopus.Release.Number}\""
-            Octopus.Action.Package.DownloadOnTentacle = "True"
-            Octopus.Action.Package.FeedId = "octopus-server-built-in"
-            Octopus.Action.Package.PackageId = "charts"
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "3"
             Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Deploying Frontend Helm chart ==="
+                
+                # Get the working directory where Octopus extracts files
+                WORK_DIR="$(pwd)"
+                echo "Working directory: $WORK_DIR"
+                
+                # List contents to debug
+                echo "Listing current directory:"
+                ls -la
+                
+                # Find the charts directory
+                if [ -d "charts/frontend" ]; then
+                    CHART_DIR="charts/frontend"
+                elif [ -d "frontend" ]; then
+                    CHART_DIR="frontend"
+                else
+                    echo "ERROR: Cannot find frontend chart directory"
+                    find . -name "Chart.yaml" || true
+                    exit 1
+                fi
+                
+                echo "Chart directory: $CHART_DIR"
+                
+                RELEASE_NAME="tunefy-frontend"
+                NAMESPACE="tunefy-dev"
+                IMAGE_TAG="#{Octopus.Release.Number}"
+                
+                # Deploy using Helm
+                helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
+                  --namespace "$NAMESPACE" \
+                  --create-namespace \
+                  --set image.tag="$IMAGE_TAG" \
+                  --values "$CHART_DIR/values-dev.yaml" \
+                  --atomic \
+                  --timeout 5m \
+                  --wait
+                
+                echo "✓ Frontend deployed successfully"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
 
@@ -134,7 +169,6 @@ step "deploy-helm-frontend" {
             package_id = "charts"
             properties = {
                 Extract = "True"
-                Purpose = "Chart"
                 SelectionMode = "immediate"
             }
         }
@@ -148,23 +182,61 @@ step "deploy-helm-backend-colornext" {
     }
 
     action {
-        action_type = "Octopus.HelmChartUpgrade"
+        action_type = "Octopus.Script"
         environments = ["dev"]
         is_required = true
         properties = {
-            Octopus.Action.Helm.ChartDirectory = "charts/backend"
-            Octopus.Action.Helm.ClientVersion = "V3"
-            Octopus.Action.Helm.CustomHelmExecutable = "helm"
-            Octopus.Action.Helm.CustomValueFiles = "values-dev.yaml"
-            Octopus.Action.Helm.Namespace = "tunefy-dev"
-            Octopus.Action.Helm.ReleaseName = "tunefy-backend"
-            Octopus.Action.Helm.ResetValues = "False"
-            Octopus.Action.Helm.Timeout = "300"
-            Octopus.Action.Helm.YamlValues = "image:\n  tag: \"#{Octopus.Release.Number}\"\ncolor: \"#{ColorNext}\"\nservice:\n  selector:\n    colorLive: \"#{ColorNext}\""
-            Octopus.Action.Package.DownloadOnTentacle = "True"
-            Octopus.Action.Package.FeedId = "octopus-server-built-in"
-            Octopus.Action.Package.PackageId = "charts"
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "15"
             Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Deploying Backend Helm chart (ColorNext: #{ColorNext}) ==="
+                
+                # Get the working directory where Octopus extracts files
+                WORK_DIR="$(pwd)"
+                echo "Working directory: $WORK_DIR"
+                
+                # List contents to debug
+                echo "Listing current directory:"
+                ls -la
+                
+                # Find the charts directory
+                if [ -d "charts/backend" ]; then
+                    CHART_DIR="charts/backend"
+                elif [ -d "backend" ]; then
+                    CHART_DIR="backend"
+                else
+                    echo "ERROR: Cannot find backend chart directory"
+                    find . -name "Chart.yaml" || true
+                    exit 1
+                fi
+                
+                echo "Chart directory: $CHART_DIR"
+                
+                RELEASE_NAME="tunefy-backend"
+                NAMESPACE="tunefy-dev"
+                IMAGE_TAG="#{Octopus.Release.Number}"
+                COLOR_NEXT="#{ColorNext}"
+                
+                # Deploy using Helm
+                helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
+                  --namespace "$NAMESPACE" \
+                  --create-namespace \
+                  --set image.tag="$IMAGE_TAG" \
+                  --set color="$COLOR_NEXT" \
+                  --set service.selector.colorLive="$COLOR_NEXT" \
+                  --values "$CHART_DIR/values-dev.yaml" \
+                  --atomic \
+                  --timeout 5m \
+                  --wait
+                
+                echo "✓ Backend deployed successfully with color: $COLOR_NEXT"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
 
@@ -174,7 +246,6 @@ step "deploy-helm-backend-colornext" {
             package_id = "charts"
             properties = {
                 Extract = "True"
-                Purpose = "Chart"
                 SelectionMode = "immediate"
             }
         }
