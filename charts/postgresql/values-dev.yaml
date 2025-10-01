@@ -1,0 +1,56 @@
+# PostgreSQL Configuration
+replicaCount: 1
+
+image:
+  repository: postgres
+  tag: "15-alpine"
+  pullPolicy: IfNotPresent
+
+# Database configuration
+postgresql:
+  database: tunefy
+  username: tunefy
+  password: tunefy_dev_password  # TODO: Use secrets in production
+
+service:
+  name: postgresql
+  type: ClusterIP
+  port: 5432
+  targetPort: 5432
+
+# Persistence
+persistence:
+  enabled: true
+  storageClass: ""  # Use default storage class
+  accessMode: ReadWriteOnce
+  size: 5Gi
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - pg_isready -U tunefy -d tunefy
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - pg_isready -U tunefy -d tunefy

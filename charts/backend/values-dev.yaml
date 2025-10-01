@@ -61,4 +61,13 @@ env:
     value: "development"
   - name: PORT
     value: "3001"
-  # Agregar otras variables de entorno necesarias
+  - name: DB_HOST
+    value: "postgresql"
+  - name: DB_PORT
+    value: "5432"
+  - name: DB_NAME
+    value: "tunefy"
+  - name: DB_USER
+    value: "tunefy"
+  - name: DB_PASSWORD
+    value: "tunefy_dev_password"  # TODO: Use secrets
