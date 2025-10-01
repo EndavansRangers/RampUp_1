@@ -118,43 +118,7 @@ step "deploy-helm-frontend" {
             Octopus.Action.Package.FeedId = "octopus-server-built-in"
             Octopus.Action.Package.PackageId = "charts"
             Octopus.Action.RunOnServer = "false"
-            Octopus.Action.Script.ScriptBody = <<-EOT
-                #!/bin/bash
-                set -euo pipefail
-                
-                echo "=== Deploying Frontend Helm chart ==="
-                
-                RELEASE_NAME="tunefy-frontend"
-                NAMESPACE="tunefy-dev"
-                # Use Octopus package extraction path
-                PACKAGE_PATH="#{Octopus.Action.Package[charts].ExtractedPath}"
-                CHART_DIR="$PACKAGE_PATH/charts/frontend"
-                IMAGE_TAG="#{Octopus.Release.Number}"
-                
-                echo "Package extracted to: $PACKAGE_PATH"
-                echo "Chart directory: $CHART_DIR"
-                
-                # Verify chart exists
-                if [ ! -f "$CHART_DIR/Chart.yaml" ]; then
-                    echo "ERROR: Chart.yaml not found at $CHART_DIR"
-                    echo "Listing package contents:"
-                    ls -la "$PACKAGE_PATH" || true
-                    ls -la "$PACKAGE_PATH/charts" || true
-                    exit 1
-                fi
-                
-                # Deploy using Helm
-                helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
-                  --namespace "$NAMESPACE" \
-                  --create-namespace \
-                  --set image.tag="$IMAGE_TAG" \
-                  --values "$CHART_DIR/values-dev.yaml" \
-                  --atomic \
-                  --timeout 5m \
-                  --wait
-                
-                echo "✓ Frontend deployed successfully"
-                EOT
+            Octopus.Action.Script.ScriptBody = "#!/bin/bash\nset -euo pipefail\n\necho \"=== Deploying Frontend Helm chart ===\"\n\nRELEASE_NAME=\"tunefy-frontend\"\nNAMESPACE=\"tunefy-dev\"\n# Use Octopus package extraction path\nPACKAGE_PATH=\"#{Octopus.Action.Package[charts].ExtractedPath}\"\nCHART_DIR=\"$PACKAGE_PATH/charts/frontend\"\nIMAGE_TAG=\"#{Octopus.Release.Number}\"\n\necho \"Package extracted to: $PACKAGE_PATH\"\necho \"Chart directory: $CHART_DIR\"\n\n# Verify chart exists\nif [ ! -f \"$CHART_DIR/Chart.yaml\" ]; then\n    echo \"ERROR: Chart.yaml not found at $CHART_DIR\"\n    echo \"Listing package contents:\"\n    ls -la \"$PACKAGE_PATH\" || true\n    ls -la \"$PACKAGE_PATH/charts\" || true\n    exit 1\nfi\n\n# Deploy using Helm\nhelm upgrade --install \"$RELEASE_NAME\" \"$CHART_DIR\" \\\n  --namespace \"$NAMESPACE\" \\\n  --create-namespace \\\n  --set image.tag=\"$IMAGE_TAG\" \\\n  --values \"$CHART_DIR/values-dev.yaml\" \\\n  --atomic \\\n  --timeout 5m \\\n  --wait\n\necho \"✓ Frontend deployed successfully\""
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
@@ -189,46 +153,7 @@ step "deploy-helm-backend-colornext" {
             Octopus.Action.Package.FeedId = "octopus-server-built-in"
             Octopus.Action.Package.PackageId = "charts"
             Octopus.Action.RunOnServer = "false"
-            Octopus.Action.Script.ScriptBody = <<-EOT
-                #!/bin/bash
-                set -euo pipefail
-                
-                echo "=== Deploying Backend Helm chart (ColorNext: #{ColorNext}) ==="
-                
-                RELEASE_NAME="tunefy-backend"
-                NAMESPACE="tunefy-dev"
-                # Use Octopus package extraction path
-                PACKAGE_PATH="#{Octopus.Action.Package[charts].ExtractedPath}"
-                CHART_DIR="$PACKAGE_PATH/charts/backend"
-                IMAGE_TAG="#{Octopus.Release.Number}"
-                COLOR_NEXT="#{ColorNext}"
-                
-                echo "Package extracted to: $PACKAGE_PATH"
-                echo "Chart directory: $CHART_DIR"
-                
-                # Verify chart exists
-                if [ ! -f "$CHART_DIR/Chart.yaml" ]; then
-                    echo "ERROR: Chart.yaml not found at $CHART_DIR"
-                    echo "Listing package contents:"
-                    ls -la "$PACKAGE_PATH" || true
-                    ls -la "$PACKAGE_PATH/charts" || true
-                    exit 1
-                fi
-                
-                # Deploy using Helm
-                helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
-                  --namespace "$NAMESPACE" \
-                  --create-namespace \
-                  --set image.tag="$IMAGE_TAG" \
-                  --set color="$COLOR_NEXT" \
-                  --set service.selector.colorLive="$COLOR_NEXT" \
-                  --values "$CHART_DIR/values-dev.yaml" \
-                  --atomic \
-                  --timeout 5m \
-                  --wait
-                
-                echo "✓ Backend deployed successfully with color: $COLOR_NEXT"
-                EOT
+            Octopus.Action.Script.ScriptBody = "#!/bin/bash\nset -euo pipefail\n\necho \"=== Deploying Backend Helm chart (ColorNext: #{ColorNext}) ===\"\n\nRELEASE_NAME=\"tunefy-backend\"\nNAMESPACE=\"tunefy-dev\"\n# Use Octopus package extraction path\nPACKAGE_PATH=\"#{Octopus.Action.Package[charts].ExtractedPath}\"\nCHART_DIR=\"$PACKAGE_PATH/charts/backend\"\nIMAGE_TAG=\"#{Octopus.Release.Number}\"\nCOLOR_NEXT=\"#{ColorNext}\"\n\necho \"Package extracted to: $PACKAGE_PATH\"\necho \"Chart directory: $CHART_DIR\"\n\n# Verify chart exists\nif [ ! -f \"$CHART_DIR/Chart.yaml\" ]; then\n    echo \"ERROR: Chart.yaml not found at $CHART_DIR\"\n    echo \"Listing package contents:\"\n    ls -la \"$PACKAGE_PATH\" || true\n    ls -la \"$PACKAGE_PATH/charts\" || true\n    exit 1\nfi\n\n# Deploy using Helm\nhelm upgrade --install \"$RELEASE_NAME\" \"$CHART_DIR\" \\\n  --namespace \"$NAMESPACE\" \\\n  --create-namespace \\\n  --set image.tag=\"$IMAGE_TAG\" \\\n  --set color=\"$COLOR_NEXT\" \\\n  --set service.selector.colorLive=\"$COLOR_NEXT\" \\\n  --values \"$CHART_DIR/values-dev.yaml\" \\\n  --atomic \\\n  --timeout 5m \\\n  --wait\n\necho \"✓ Backend deployed successfully with color: $COLOR_NEXT\""
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
