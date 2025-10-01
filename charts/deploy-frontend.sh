@@ -22,10 +22,14 @@ if [ ! -f "$CHART_DIR/Chart.yaml" ]; then
     exit 1
 fi
 
-# Check if there's a stuck release
-if helm list -n "$NAMESPACE" | grep -q "$RELEASE_NAME.*pending"; then
-    echo "WARNING: Found stuck release, attempting rollback..."
-    helm rollback "$RELEASE_NAME" 0 -n "$NAMESPACE" --wait || true
+# Check if there's a stuck release (pending-install, pending-upgrade, pending-rollback, etc.)
+if helm list -n "$NAMESPACE" -a 2>/dev/null | grep "$RELEASE_NAME" | grep -q "pending"; then
+    echo "WARNING: Found stuck release, attempting to recover..."
+    # Try rollback first, if that fails, uninstall
+    if ! helm rollback "$RELEASE_NAME" 0 -n "$NAMESPACE" --wait --timeout 30s 2>/dev/null; then
+        echo "Rollback failed, uninstalling stuck release..."
+        helm uninstall "$RELEASE_NAME" -n "$NAMESPACE" --wait --timeout 30s || true
+    fi
     sleep 2
 fi
 
