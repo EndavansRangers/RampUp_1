@@ -126,6 +126,13 @@ object Tunefy : BuildType({
                 if [ "${'$'}HTTP_CODE" = "201" ] || [ "${'$'}HTTP_CODE" = "200" ]; then
                     echo "✅ Charts package uploaded successfully (HTTP ${'$'}HTTP_CODE)"
                     echo "Response: ${'$'}RESPONSE_BODY"
+                    
+                    # Verificar que el paquete aparece en Octopus
+                    echo "Verifying package in Octopus..."
+                    sleep 2  # Dar tiempo para que se indexe
+                    PACKAGES=${'$'}(curl -s "${'$'}OCTO_URL/api/packages?nuGetPackageId=charts&take=5" \
+                      -H "X-Octopus-ApiKey: ${'$'}OCTO_API_KEY")
+                    echo "Available packages: ${'$'}PACKAGES"
                 else
                     echo "❌ Failed to upload package (HTTP ${'$'}HTTP_CODE)"
                     echo "Response: ${'$'}RESPONSE_BODY"
