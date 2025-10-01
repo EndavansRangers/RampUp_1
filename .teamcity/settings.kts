@@ -60,8 +60,15 @@ object Tunefy : BuildType({
             name = "Login ECR"
             id = "Login_ECR"
             scriptContent = """
-                aws ecr get-login-password --region "${'$'}AWS_DEFAULT_REGION" \
-                | docker login --username AWS --password-stdin "${'$'}DOCKER_REGISTRY"
+                # Usar IAM Role de la instancia EC2 (tunefy-dev-teamcity)
+                # El contenedor hereda las credenciales del metadata endpoint
+                ECR_PASSWORD=${'$'}(docker run --rm \
+                  --network host \
+                  -e AWS_DEFAULT_REGION="${'$'}AWS_DEFAULT_REGION" \
+                  amazon/aws-cli:2.15.10 \
+                  ecr get-login-password --region "${'$'}AWS_DEFAULT_REGION")
+                
+                echo "${'$'}ECR_PASSWORD" | docker login --username AWS --password-stdin "${'$'}DOCKER_REGISTRY"
             """.trimIndent()
         }
         script {
