@@ -10,19 +10,7 @@ step "setup-kubeconfig" {
                 #!/bin/bash
                 set -euo pipefail
                 
-                echo "=== Installing kubectl if not available ==="
-                if ! command -v kubectl &> /dev/null; then
-                    echo "Installing kubectl..."
-                    curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
-                    chmod +x kubectl
-                    export PATH="$PATH:$PWD"
-                    echo "kubectl installed in current directory"
-                else
-                    echo "kubectl already available: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
-                fi
-                
-                echo ""
-                echo "Setting up kubeconfig for Kubernetes access..."
+                echo "=== Setting up kubeconfig for Kubernetes access ==="
                 
                 # Create kubeconfig directory
                 mkdir -p ~/.kube
@@ -34,7 +22,7 @@ step "setup-kubeconfig" {
                 clusters:
                 - cluster:
                     insecure-skip-tls-verify: true
-                    server: https://tunefy-dev-cp-nlb-c77324b383d150a0.elb.us-east-1.amazonaws.com
+                    server: https://127.0.0.1:6443
                   name: tunefy-dev
                 contexts:
                 - context:
@@ -50,14 +38,15 @@ step "setup-kubeconfig" {
                 KUBECONFIG_EOF
                 
                 chmod 600 ~/.kube/config
-                echo "Kubeconfig created successfully"
+                echo "✓ Kubeconfig created successfully"
                 
-                # Test connection using kubectl
-                ./kubectl version --client 2>/dev/null || echo "kubectl connection test - will verify in next steps"
+                # Test connection
+                kubectl version --client
+                kubectl get nodes
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
-            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.TargetRoles = "k8s-deployer"
         }
     }
 }
@@ -74,72 +63,32 @@ step "upsert-ecr-credentials" {
                 #!/bin/bash
                 set -euo pipefail
                 
-                echo "=== Ensuring tools are available ==="
+                echo "=== Upserting ECR pull secret ==="
                 
-                # Install kubectl if not available
-                if ! command -v kubectl &> /dev/null; then
-                    if [ ! -f ./kubectl ]; then
-                        echo "Installing kubectl..."
-                        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
-                        chmod +x kubectl
-                    fi
-                    export PATH="$PATH:$PWD"
-                fi
-                
-                # Check for AWS CLI in common locations
-                if ! command -v aws &> /dev/null; then
-                    echo "Searching for AWS CLI..."
-                    # Try common installation paths
-                    for path in /usr/local/bin/aws /usr/bin/aws /opt/aws-cli/bin/aws; do
-                        if [ -f "$path" ]; then
-                            export PATH="$(dirname $path):$PATH"
-                            echo "Found AWS CLI at $path"
-                            break
-                        fi
-                    done
-                    
-                    # If still not found, fail gracefully
-                    if ! command -v aws &> /dev/null; then
-                        echo "ERROR: AWS CLI not found. Please install it on the Octopus host."
-                        exit 1
-                    fi
-                fi
-                
-                echo ""
-                echo "Upserting ECR pull secret..."
-                
-                # Get AWS credentials from IAM Role (Octopus runs on EC2 with IAM profile)
+                # Get AWS credentials from IAM Role (CP has IAM profile)
                 ACCOUNT_ID="365074502389"
                 REGION="us-east-1"
                 NAMESPACE="tunefy-dev"
                 
                 # Get ECR login token using IAM Role
-                echo "Getting ECR login token using AWS CLI..."
-                if ! TOKEN=$(aws ecr get-login-password --region "$REGION" 2>&1); then
-                    echo "ERROR: Failed to get ECR token"
-                    echo "AWS CLI output: $TOKEN"
-                    echo "Checking AWS CLI version..."
-                    aws --version || echo "AWS CLI not available"
-                    echo "Checking IAM credentials..."
-                    aws sts get-caller-identity || echo "No IAM credentials available"
-                    exit 1
-                fi
+                echo "Getting ECR login token..."
+                TOKEN=$(aws ecr get-login-password --region "$REGION")
                 
-                echo "ECR token obtained, creating Kubernetes secret..."
+                echo "Creating Kubernetes secret..."
                 
                 # Create or update secret using kubectl
-                ./kubectl create secret docker-registry ecr-creds \
+                kubectl create secret docker-registry ecr-creds \
                   --docker-server=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com \
                   --docker-username=AWS \
                   --docker-password="$TOKEN" \
                   --namespace=$NAMESPACE \
-                  --dry-run=client -o yaml | ./kubectl apply -f -
+                  --dry-run=client -o yaml | kubectl apply -f -
                 
-                echo "ECR credentials updated in namespace $NAMESPACE"
+                echo "✓ ECR credentials updated in namespace $NAMESPACE"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
-            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.TargetRoles = "k8s-deployer"
         }
     }
 }
@@ -154,39 +103,14 @@ step "deploy-helm-frontend" {
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "3"
             Octopus.Action.AutoRetry.MinimumBackoff = "3"
-            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.DownloadOnTentacle = "True"
             Octopus.Action.Package.FeedId = "octopus-server-built-in"
             Octopus.Action.Package.PackageId = "charts"
-            Octopus.Action.RunOnServer = "true"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 #!/bin/bash
                 set -euo pipefail
                 
-                echo "=== Ensuring tools are available ==="
-                
-                # Install kubectl if not available
-                if ! command -v kubectl &> /dev/null; then
-                    if [ ! -f ./kubectl ]; then
-                        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
-                        chmod +x kubectl
-                    fi
-                    export PATH="$PATH:$PWD"
-                fi
-                
-                # Install helm if not available
-                if ! command -v helm &> /dev/null; then
-                    if [ ! -f ./helm ]; then
-                        echo "Installing helm..."
-                        curl -fsSL https://get.helm.sh/helm-v3.13.1-linux-amd64.tar.gz | tar xz
-                        mv linux-amd64/helm ./helm
-                        rm -rf linux-amd64
-                        chmod +x helm
-                    fi
-                    export PATH="$PATH:$PWD"
-                fi
-                
-                echo ""
-                echo "Deploying Frontend Helm chart..."
+                echo "=== Deploying Frontend Helm chart ==="
                 
                 RELEASE_NAME="tunefy-frontend"
                 NAMESPACE="tunefy-dev"
@@ -202,10 +126,11 @@ step "deploy-helm-frontend" {
                   --timeout 5m \
                   --wait
                 
-                echo "Frontend deployed successfully"
+                echo "✓ Frontend deployed successfully"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
         }
 
         packages {
@@ -230,39 +155,14 @@ step "deploy-helm-backend-colornext" {
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "3"
             Octopus.Action.AutoRetry.MinimumBackoff = "15"
-            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.DownloadOnTentacle = "True"
             Octopus.Action.Package.FeedId = "octopus-server-built-in"
             Octopus.Action.Package.PackageId = "charts"
-            Octopus.Action.RunOnServer = "true"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 #!/bin/bash
                 set -euo pipefail
                 
-                echo "=== Ensuring tools are available ==="
-                
-                # Install kubectl if not available
-                if ! command -v kubectl &> /dev/null; then
-                    if [ ! -f ./kubectl ]; then
-                        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
-                        chmod +x kubectl
-                    fi
-                    export PATH="$PATH:$PWD"
-                fi
-                
-                # Install helm if not available
-                if ! command -v helm &> /dev/null; then
-                    if [ ! -f ./helm ]; then
-                        echo "Installing helm..."
-                        curl -fsSL https://get.helm.sh/helm-v3.13.1-linux-amd64.tar.gz | tar xz
-                        mv linux-amd64/helm ./helm
-                        rm -rf linux-amd64
-                        chmod +x helm
-                    fi
-                    export PATH="$PATH:$PWD"
-                fi
-                
-                echo ""
-                echo "Deploying Backend Helm chart (ColorNext: #{ColorNext})..."
+                echo "=== Deploying Backend Helm chart (ColorNext: #{ColorNext}) ==="
                 
                 RELEASE_NAME="tunefy-backend"
                 NAMESPACE="tunefy-dev"
@@ -281,10 +181,11 @@ step "deploy-helm-backend-colornext" {
                   --timeout 5m \
                   --wait
                 
-                echo "Backend deployed successfully with color: $COLOR_NEXT"
+                echo "✓ Backend deployed successfully with color: $COLOR_NEXT"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
         }
 
         packages {
@@ -309,22 +210,11 @@ step "smoke-test" {
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "3"
             Octopus.Action.AutoRetry.MinimumBackoff = "15"
-            Octopus.Action.RunOnServer = "true"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 #!/bin/bash
                 set -euo pipefail
                 
-                echo "=== Ensuring kubectl is available ==="
-                if ! command -v kubectl &> /dev/null; then
-                    if [ ! -f ./kubectl ]; then
-                        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
-                        chmod +x kubectl
-                    fi
-                    export PATH="$PATH:$PWD"
-                fi
-                
-                echo ""
-                echo "Running smoke test on backend service..."
+                echo "=== Running smoke test on backend service ==="
                 echo "Testing ColorNext: #{ColorNext}"
                 
                 NAMESPACE="tunefy-dev"
@@ -338,14 +228,15 @@ step "smoke-test" {
                   --rm -i \
                   -- curl -sf http://backend:3001/health
                 
-                echo "Smoke test passed!"
-                echo "Setting ColorLive to #{ColorNext}"
+                echo "✓ Smoke test passed!"
+                echo "ColorLive can be set to #{ColorNext}"
                 
                 # Set output variable for next step
                 set_octopusvariable "SmokeTestResult" "success"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
         }
     }
 }
