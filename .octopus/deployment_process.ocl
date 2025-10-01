@@ -40,11 +40,8 @@ step "setup-kubeconfig" {
                 chmod 600 ~/.kube/config
                 echo "Kubeconfig created successfully"
                 
-                # Test connection using kubectl container
-                docker run --rm --network host \
-                  -v ~/.kube:/root/.kube \
-                  bitnami/kubectl:1.28 \
-                  version --short || echo "kubectl connection test - will verify in next steps"
+                # Test connection using kubectl
+                kubectl version --short || echo "kubectl connection test - will verify in next steps"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
@@ -72,28 +69,26 @@ step "upsert-ecr-credentials" {
                 REGION="us-east-1"
                 NAMESPACE="tunefy-dev"
                 
-                # Get ECR login token using AWS CLI container
-                TOKEN=$(docker run --rm --network host \
-                  -e AWS_DEFAULT_REGION="$REGION" \
-                  amazon/aws-cli:2.15.10 \
-                  ecr get-login-password --region "$REGION")
+                # Install unzip and AWS CLI if not available
+                if ! command -v aws &> /dev/null; then
+                    echo "Installing AWS CLI..."
+                    sudo apt-get update -qq && sudo apt-get install -y unzip
+                    curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                    unzip -q awscliv2.zip
+                    sudo ./aws/install
+                    rm -rf aws awscliv2.zip
+                fi
                 
-                # Create or update secret using kubectl container
-                docker run --rm --network host \
-                  -v ~/.kube:/root/.kube \
-                  bitnami/kubectl:1.28 \
-                  create secret docker-registry ecr-creds \
+                # Get ECR login token using IAM Role
+                TOKEN=$(aws ecr get-login-password --region "$REGION")
+                
+                # Create or update secret using kubectl
+                kubectl create secret docker-registry ecr-creds \
                   --docker-server=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com \
                   --docker-username=AWS \
                   --docker-password="$TOKEN" \
                   --namespace=$NAMESPACE \
-                  --dry-run=client -o yaml > /tmp/ecr-secret.yaml
-                
-                docker run --rm --network host \
-                  -v ~/.kube:/root/.kube \
-                  -v /tmp:/tmp \
-                  bitnami/kubectl:1.28 \
-                  apply -f /tmp/ecr-secret.yaml
+                  --dry-run=client -o yaml | kubectl apply -f -
                 
                 echo "ECR credentials updated in namespace $NAMESPACE"
                 EOT
@@ -129,13 +124,8 @@ step "deploy-helm-frontend" {
                 CHART_DIR="charts/frontend"
                 IMAGE_TAG="#{Octopus.Release.Number}"
                 
-                # Deploy using Helm container
-                docker run --rm --network host \
-                  -v ~/.kube:/root/.kube \
-                  -v "$PWD:/workdir" \
-                  -w /workdir \
-                  alpine/helm:3.13.1 \
-                  upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
+                # Deploy using Helm
+                helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
                   --namespace "$NAMESPACE" \
                   --set image.tag="$IMAGE_TAG" \
                   --values "$CHART_DIR/values-dev.yaml" \
@@ -187,13 +177,8 @@ step "deploy-helm-backend-colornext" {
                 IMAGE_TAG="#{Octopus.Release.Number}"
                 COLOR_NEXT="#{ColorNext}"
                 
-                # Deploy using Helm container
-                docker run --rm --network host \
-                  -v ~/.kube:/root/.kube \
-                  -v "$PWD:/workdir" \
-                  -w /workdir \
-                  alpine/helm:3.13.1 \
-                  upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
+                # Deploy using Helm
+                helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
                   --namespace "$NAMESPACE" \
                   --set image.tag="$IMAGE_TAG" \
                   --set color="$COLOR_NEXT" \
@@ -242,11 +227,8 @@ step "smoke-test" {
                 NAMESPACE="tunefy-dev"
                 POD_NAME="smoke-test-$(date +%s)"
                 
-                # Run smoke test using kubectl container
-                docker run --rm --network host \
-                  -v ~/.kube:/root/.kube \
-                  bitnami/kubectl:1.28 \
-                  run "$POD_NAME" \
+                # Run smoke test using kubectl
+                kubectl run "$POD_NAME" \
                   --namespace="$NAMESPACE" \
                   --restart=Never \
                   --image=curlimages/curl:8.10.1 \
