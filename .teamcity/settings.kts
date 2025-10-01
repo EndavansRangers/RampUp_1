@@ -99,12 +99,15 @@ object Tunefy : BuildType({
                 ENV="Dev"
                 COLOR_NEXT="${'$'}{COLOR_NEXT:-blue}"  # alterna en cada build si quieres
                 
-                docker run --rm octopusdeploy/octo:9.1.7 \
+                # Usar --network host para alcanzar Octopus server en la red privada
+                docker run --rm --network host \
+                  octopusdeploy/octo:9.1.7 \
                   create-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
                   --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" --ignoreExisting \
                   --variable "ColorNext:${'$'}COLOR_NEXT"
                 
-                docker run --rm octopusdeploy/octo:9.1.7 \
+                docker run --rm --network host \
+                  octopusdeploy/octo:9.1.7 \
                   deploy-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
                   --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
                   --deployTo "${'$'}ENV" --progress --waitForDeployment
