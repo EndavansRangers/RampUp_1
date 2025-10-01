@@ -137,7 +137,7 @@ step "deploy-helm-frontend" {
         }
 
         packages {
-            acquisition_location = "Server"
+            acquisition_location = "ExecutionTarget"
             feed = "octopus-server-built-in"
             package_id = "charts"
             properties = {
@@ -193,7 +193,7 @@ step "deploy-helm-backend-colornext" {
         }
 
         packages {
-            acquisition_location = "Server"
+            acquisition_location = "ExecutionTarget"
             feed = "octopus-server-built-in"
             package_id = "charts"
             properties = {
