@@ -1,3 +1,41 @@
+step "install-kubectl" {
+    name = "Install kubectl (if missing)"
+    properties = {
+        Octopus.Action.TargetRoles = "dev,k8s"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "Checking if kubectl is installed..."
+                
+                if command -v kubectl &> /dev/null; then
+                    echo "kubectl is already installed: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+                    exit 0
+                fi
+                
+                echo "kubectl not found, installing..."
+                
+                # Install kubectl
+                curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+                chmod +x kubectl
+                sudo mv kubectl /usr/local/bin/
+                
+                echo "kubectl installed successfully: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.RunOnServer = "false"
+        }
+    }
+}
+
 step "upsert-ecr-credentials" {
     name = "Upsert ECR Credentials"
     properties = {
