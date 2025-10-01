@@ -30,6 +30,11 @@ RUN npm run build
 # ---------- Stage 2: Nginx ----------
 FROM nginx:alpine
 # Fallback SPA (React Router)
-RUN printf 'server {\n  listen 80;\n  server_name _;\n  root /usr/share/nginx/html;\n  location / { try_files $$uri /index.html; }\n}\n' > /etc/nginx/conf.d/default.conf
+RUN echo 'server {' > /etc/nginx/conf.d/default.conf && \
+    echo '  listen 80;' >> /etc/nginx/conf.d/default.conf && \
+    echo '  server_name _;' >> /etc/nginx/conf.d/default.conf && \
+    echo '  root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf && \
+    echo '  location / { try_files $uri /index.html; }' >> /etc/nginx/conf.d/default.conf && \
+    echo '}' >> /etc/nginx/conf.d/default.conf
 COPY --from=build /app/build/ /usr/share/nginx/html/
 EXPOSE 80
