@@ -1,11 +1,15 @@
 step "setup-kubeconfig" {
     name = "Setup Kubeconfig"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
 
     action {
         action_type = "Octopus.Script"
         environments = ["dev"]
         is_required = true
         properties = {
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 #!/bin/bash
                 set -euo pipefail
@@ -46,7 +50,6 @@ step "setup-kubeconfig" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
-            Octopus.Action.RunOnServer = "false"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
     }
@@ -54,12 +57,16 @@ step "setup-kubeconfig" {
 
 step "upsert-ecr-credentials" {
     name = "Upsert ECR Credentials"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
 
     action {
         action_type = "Octopus.Script"
         environments = ["dev"]
         is_required = true
         properties = {
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 #!/bin/bash
                 set -euo pipefail
@@ -89,7 +96,6 @@ step "upsert-ecr-credentials" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
-            Octopus.Action.RunOnServer = "false"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
     }
@@ -97,6 +103,9 @@ step "upsert-ecr-credentials" {
 
 step "deploy-helm-frontend" {
     name = "Deploy Helm (Frontend)"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
 
     action {
         action_type = "Octopus.Script"
@@ -105,51 +114,20 @@ step "deploy-helm-frontend" {
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "3"
             Octopus.Action.AutoRetry.MinimumBackoff = "3"
-            Octopus.Action.Package.DownloadOnTentacle = "True"
-            Octopus.Action.Package.FeedId = "octopus-server-built-in"
-            Octopus.Action.Package.PackageId = "charts"
-            Octopus.Action.Script.ScriptBody = <<-EOT
-                #!/bin/bash
-                set -euo pipefail
-                
-                echo "=== Deploying Frontend Helm chart ==="
-                
-                RELEASE_NAME="tunefy-frontend"
-                NAMESPACE="tunefy-dev"
-                CHART_DIR="charts/frontend"
-                IMAGE_TAG="#{Octopus.Release.Number}"
-                
-                # Deploy using Helm
-                helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
-                  --namespace "$NAMESPACE" \
-                  --set image.tag="$IMAGE_TAG" \
-                  --values "$CHART_DIR/values-dev.yaml" \
-                  --atomic \
-                  --timeout 5m \
-                  --wait
-                
-                echo "✓ Frontend deployed successfully"
-                EOT
-            Octopus.Action.Script.ScriptSource = "Inline"
-            Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "echo \"test\""
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
             Octopus.Action.TargetRoles = "k8s-deployer"
-        }
-
-        packages {
-            acquisition_location = "ExecutionTarget"
-            feed = "octopus-server-built-in"
-            package_id = "charts"
-            properties = {
-                SelectionMode = "immediate"
-                Extract = "True"
-            }
         }
     }
 }
 
 step "deploy-helm-backend-colornext" {
     name = "Deploy Helm (Backend ColorNext)"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
 
     action {
         action_type = "Octopus.Script"
@@ -158,54 +136,20 @@ step "deploy-helm-backend-colornext" {
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "3"
             Octopus.Action.AutoRetry.MinimumBackoff = "15"
-            Octopus.Action.Package.DownloadOnTentacle = "True"
-            Octopus.Action.Package.FeedId = "octopus-server-built-in"
-            Octopus.Action.Package.PackageId = "charts"
-            Octopus.Action.Script.ScriptBody = <<-EOT
-                #!/bin/bash
-                set -euo pipefail
-                
-                echo "=== Deploying Backend Helm chart (ColorNext: #{ColorNext}) ==="
-                
-                RELEASE_NAME="tunefy-backend"
-                NAMESPACE="tunefy-dev"
-                CHART_DIR="charts/backend"
-                IMAGE_TAG="#{Octopus.Release.Number}"
-                COLOR_NEXT="#{ColorNext}"
-                
-                # Deploy using Helm
-                helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
-                  --namespace "$NAMESPACE" \
-                  --set image.tag="$IMAGE_TAG" \
-                  --set color="$COLOR_NEXT" \
-                  --set service.selector.colorLive="$COLOR_NEXT" \
-                  --values "$CHART_DIR/values-dev.yaml" \
-                  --atomic \
-                  --timeout 5m \
-                  --wait
-                
-                echo "✓ Backend deployed successfully with color: $COLOR_NEXT"
-                EOT
-            Octopus.Action.Script.ScriptSource = "Inline"
-            Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "echo \"test\""
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
             Octopus.Action.TargetRoles = "k8s-deployer"
-        }
-
-        packages {
-            acquisition_location = "ExecutionTarget"
-            feed = "octopus-server-built-in"
-            package_id = "charts"
-            properties = {
-                SelectionMode = "immediate"
-                Extract = "True"
-            }
         }
     }
 }
 
 step "smoke-test" {
     name = "Smoke test"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
 
     action {
         action_type = "Octopus.Script"
@@ -214,6 +158,7 @@ step "smoke-test" {
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "3"
             Octopus.Action.AutoRetry.MinimumBackoff = "15"
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 #!/bin/bash
                 set -euo pipefail
@@ -240,7 +185,6 @@ step "smoke-test" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
-            Octopus.Action.RunOnServer = "false"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
     }
@@ -248,7 +192,6 @@ step "smoke-test" {
 
 step "update-colorlive" {
     name = "Update ColorLive"
-    condition = "Success"
 
     action {
         action_type = "Octopus.Script"
