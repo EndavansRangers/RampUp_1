@@ -1,0 +1,118 @@
+step "deploy-helm-frontend" {
+    name = "Deploy Helm (Frontend)"
+    properties = {
+        Octopus.Action.TargetRoles = "dev,k8s"
+    }
+
+    action {
+        action_type = "Octopus.HelmChartUpgrade"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "3"
+            Octopus.Action.Helm.AdditionalArgs = "--atomic"
+            Octopus.Action.Helm.ReleaseName = "frontend-#{Octopus.Environment.Name | ToLower}"
+            Octopus.Action.Helm.ResetValues = "False"
+            Octopus.Action.Helm.TemplateValuesSources = <<-EOT
+                [
+                  {
+                    "Type": "InlineYaml",
+                    "Value": "color: \"blue\"  # Octopus alterna entre \"blue\" y \"green\"\n\nimage:\n  repository: 365074502389.dkr.ecr.us-east-1.amazonaws.com/tunefy-backend-dev\n  tag: \"0.0.0-local\"  # Octopus lo reemplaza por #{Octopus.Release.Number}\n  pullPolicy: IfNotPresent\n\nimagePullSecrets:\n  - name: ecr-creds\n\nreplicaCount: 2\n\nservice:\n  name: backend  # Servicio \"estable\"\n  port: 3001\n  targetPort: 3001\n  type: ClusterIP\n  selector:\n    colorLive: \"blue\"  # Octopus cambia a \"green\" tras smoke test\n\ningress:\n  enabled: true\n  className: alb\n  annotations:\n    alb.ingress.kubernetes.io/scheme: internet-facing\n    alb.ingress.kubernetes.io/target-type: instance\n    alb.ingress.kubernetes.io/listen-ports: '[{\"HTTP\":80}]'\n    alb.ingress.kubernetes.io/healthcheck-path: /health\n  hosts:\n    - host: api.dev.tunefy.local  # Cambiar por tu dominio\n      paths:\n        - path: /api\n          pathType: Prefix\n\nresources:\n  limits:\n    cpu: 500m\n    memory: 512Mi\n  requests:\n    cpu: 250m\n    memory: 256Mi\n\nlivenessProbe:\n  httpGet:\n    path: /health\n    port: 3001\n  initialDelaySeconds: 30\n  periodSeconds: 10\n\nreadinessProbe:\n  httpGet:\n    path: /health\n    port: 3001\n  initialDelaySeconds: 10\n  periodSeconds: 5\n\nenv:\n  - name: NODE_ENV\n    value: \"development\"\n  - name: PORT\n    value: \"3001\"\n  # Agregar otras variables de entorno necesarias\n"
+                  }
+                ]
+                EOT
+            Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
+            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.FeedId = "octopus-server-built-in"
+            Octopus.Action.Package.PackageId = "frontend"
+            Octopus.Action.Script.ScriptSource = "Package"
+        }
+
+        packages {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "frontend"
+            properties = {
+                SelectionMode = "immediate"
+                ValuesFilePath = ""
+            }
+            version = "#{Octopus.Release.Number}"
+        }
+    }
+}
+
+step "deploy-helm-backend" {
+    name = "Deploy Helm (Backend)"
+    properties = {
+        Octopus.Action.TargetRoles = "dev,k8s"
+    }
+
+    action {
+        action_type = "Octopus.HelmChartUpgrade"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "15"
+            Octopus.Action.Helm.AdditionalArgs = "--atomic"
+            Octopus.Action.Helm.Namespace = "tunefy-dev"
+            Octopus.Action.Helm.ReleaseName = "backend-#{Octopus.Environment.Name | ToLower}"
+            Octopus.Action.Helm.ResetValues = "False"
+            Octopus.Action.Helm.TemplateValuesSources = <<-EOT
+                [
+                  {
+                    "Type": "InlineYaml",
+                    "Value": "color: \"blue\"  # Octopus alterna entre \"blue\" y \"green\"\n\nimage:\n  repository: 365074502389.dkr.ecr.us-east-1.amazonaws.com/tunefy-backend-dev\n  tag: \"0.0.0-local\"  # Octopus lo reemplaza por #{Octopus.Release.Number}\n  pullPolicy: IfNotPresent\n\nimagePullSecrets:\n  - name: ecr-creds\n\nreplicaCount: 2\n\nservice:\n  name: backend  # Servicio \"estable\"\n  port: 3001\n  targetPort: 3001\n  type: ClusterIP\n  selector:\n    colorLive: \"blue\"  # Octopus cambia a \"green\" tras smoke test\n\ningress:\n  enabled: true\n  className: alb\n  annotations:\n    alb.ingress.kubernetes.io/scheme: internet-facing\n    alb.ingress.kubernetes.io/target-type: instance\n    alb.ingress.kubernetes.io/listen-ports: '[{\"HTTP\":80}]'\n    alb.ingress.kubernetes.io/healthcheck-path: /health\n  hosts:\n    - host: api.dev.tunefy.local  # Cambiar por tu dominio\n      paths:\n        - path: /api\n          pathType: Prefix\n\nresources:\n  limits:\n    cpu: 500m\n    memory: 512Mi\n  requests:\n    cpu: 250m\n    memory: 256Mi\n\nlivenessProbe:\n  httpGet:\n    path: /health\n    port: 3001\n  initialDelaySeconds: 30\n  periodSeconds: 10\n\nreadinessProbe:\n  httpGet:\n    path: /health\n    port: 3001\n  initialDelaySeconds: 10\n  periodSeconds: 5\n\nenv:\n  - name: NODE_ENV\n    value: \"development\"\n  - name: PORT\n    value: \"3001\"\n  # Agregar otras variables de entorno necesarias\n"
+                  }
+                ]
+                EOT
+            Octopus.Action.Kubernetes.ResourceStatusCheck = "True"
+            Octopus.Action.Kubernetes.WaitForJobs = "False"
+            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.FeedId = "octopus-server-built-in"
+            Octopus.Action.Package.PackageId = "backend"
+            Octopus.Action.Script.ScriptSource = "Package"
+        }
+
+        packages {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "backend"
+            properties = {
+                SelectionMode = "immediate"
+                ValuesFilePath = ""
+            }
+            version = "#{Octopus.Release.Number}"
+        }
+    }
+}
+
+step "smoke-test" {
+    name = "Smoke test"
+    properties = {
+        Octopus.Action.TargetRoles = "dev,k8s"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "15"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                set -euo pipefail
+                # Probar el backend en el Service interno
+                kubectl -n tunefy-dev run smoke --restart=Never --image=curlimages/curl:8.10.1 \
+                  --rm -i -- curl -sf http://backend:3001/health
+                echo "Smoke OK"
+                
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            OctopusUseBundledTooling = "False"
+        }
+    }
+}
