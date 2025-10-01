@@ -3,8 +3,8 @@ set -euo pipefail
 
 echo "=== Deploying Frontend Helm chart ==="
 
-# Chart is in current directory after Octopus extracts
-CHART_DIR="charts/frontend"
+# After cd charts/charts, the chart is at ./frontend
+CHART_DIR="./frontend"
 RELEASE_NAME="tunefy-frontend"
 NAMESPACE="tunefy-dev"
 
