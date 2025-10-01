@@ -1,0 +1,122 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: octopus-agent
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: octopus-agent
+  namespace: octopus-agent
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: octopus-agent
+rules:
+  # Full admin access for deployments
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: octopus-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: octopus-agent
+subjects:
+  - kind: ServiceAccount
+    name: octopus-agent
+    namespace: octopus-agent
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: octopus-agent-config
+  namespace: octopus-agent
+data:
+  OCTOPUS__SERVER__URL: "http://10.20.62.98:8080"
+  OCTOPUS__SERVER__COMMS_ADDRESS: "http://10.20.62.98:10943"
+  OCTOPUS__SPACE: "Default"
+  ACCEPT_EULA: "Y"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: octopus-agent-api-key
+  namespace: octopus-agent
+type: Opaque
+stringData:
+  apiKey: "API-ZTJRLULIZSONJP94ZEGLSVUK4ZDKO4O"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: octopus-agent
+  namespace: octopus-agent
+  labels:
+    app: octopus-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: octopus-agent
+  template:
+    metadata:
+      labels:
+        app: octopus-agent
+    spec:
+      serviceAccountName: octopus-agent
+      containers:
+        - name: octopus-agent
+          image: octopusdeploy/kubernetes-agent:latest
+          env:
+            - name: OCTOPUS__SERVER__URL
+              valueFrom:
+                configMapKeyRef:
+                  name: octopus-agent-config
+                  key: OCTOPUS__SERVER__URL
+            - name: OCTOPUS__SERVER__COMMS_ADDRESS
+              valueFrom:
+                configMapKeyRef:
+                  name: octopus-agent-config
+                  key: OCTOPUS__SERVER__COMMS_ADDRESS
+            - name: OCTOPUS__SPACE
+              valueFrom:
+                configMapKeyRef:
+                  name: octopus-agent-config
+                  key: OCTOPUS__SPACE
+            - name: ACCEPT_EULA
+              valueFrom:
+                configMapKeyRef:
+                  name: octopus-agent-config
+                  key: ACCEPT_EULA
+            - name: OCTOPUS__SERVER__API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: octopus-agent-api-key
+                  key: apiKey
+            - name: OCTOPUS__AGENT__TARGET_NAME
+              value: "k8s-agent-dev"
+            - name: OCTOPUS__AGENT__TARGET_TAGS
+              value: "k8s,k8s-deployer,dev"
+            - name: OCTOPUS__AGENT__TARGET_ENVIRONMENT
+              value: "Dev"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          emptyDir: {}
+---
