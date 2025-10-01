@@ -8,7 +8,7 @@ image:
 imagePullSecrets:
   - name: ecr-creds
 
-replicaCount: 2
+replicaCount: 1
 
 service:
   name: backend  # Servicio "estable"
@@ -34,11 +34,11 @@ ingress:
 
 resources:
   limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
-    cpu: 250m
+    cpu: 300m
     memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
 
 livenessProbe:
   httpGet:
