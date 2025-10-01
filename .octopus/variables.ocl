@@ -23,3 +23,9 @@ variable "Octopus.Release.Number" {
         description = "Automatic versioning based on GitVersion"
     }
 }
+variable \"Kubernetes.Token\" {
+    value \"REPLACE_WITH_K8S_TOKEN\" {
+        environment = [\"dev\"]
+        description = \"Kubernetes authentication token for cluster access\"
+    }
+}
