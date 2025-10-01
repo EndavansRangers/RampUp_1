@@ -37,8 +37,6 @@ object Tunefy : BuildType({
     params {
         param("env.DOCKER_REGISTRY", "365074502389.dkr.ecr.us-east-1.amazonaws.com")
         param("env.COLOR_NEXT", "blue")
-        param("env.DOCKER_TAG", "%GitVersion.SemVer%")
-        param("GitVersion.SemVer", "1.0.0")
         param("env.AWS_DEFAULT_REGION", "us-east-1")
         password("env.OCTO_API_KEY", "credentialsJSON:223c7874-6618-4f07-b353-809e4ca77e0e")
         param("env.OCTO_URL", "http://10.20.62.98:8080")
@@ -48,14 +46,23 @@ object Tunefy : BuildType({
         root(DslContext.settingsRoot)
     }
 
-    features {
-        feature {
-            type = "JetBrains.GitVersion"
-            param("versionFormat", "%GitVersion.SemVer%")
-        }
-    }
-
     steps {
+        script {
+            name = "Generate Version"
+            id = "Generate_Version"
+            scriptContent = """
+                # Generar versión basada en Git (alternativa simple a GitVersion)
+                VERSION=${'$'}(git describe --tags --abbrev=0 2>/dev/null || echo "1.0.0")
+                BUILD_NUMBER=${'$'}(git rev-list --count HEAD)
+                COMMIT_SHORT=${'$'}(git rev-parse --short HEAD)
+                
+                # Formato: version.buildnumber-commit (ej: 1.0.0.123-a1b2c3d)
+                DOCKER_TAG="${'$'}{VERSION}.${'$'}{BUILD_NUMBER}-${'$'}{COMMIT_SHORT}"
+                
+                echo "Generated version: ${'$'}DOCKER_TAG"
+                echo "##teamcity[setParameter name='env.DOCKER_TAG' value='${'$'}DOCKER_TAG']"
+            """.trimIndent()
+        }
         script {
             name = "Login ECR"
             id = "Login_ECR"
