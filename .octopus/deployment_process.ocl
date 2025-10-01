@@ -125,22 +125,19 @@ step "deploy-helm-frontend" {
                 WORK_DIR="$(pwd)"
                 echo "Working directory: $WORK_DIR"
                 
-                # List contents to debug
-                echo "Listing current directory:"
-                ls -la
-                
-                # Find the charts directory
-                if [ -d "charts/frontend" ]; then
-                    CHART_DIR="charts/frontend"
-                elif [ -d "frontend" ]; then
-                    CHART_DIR="frontend"
-                else
-                    echo "ERROR: Cannot find frontend chart directory"
-                    find . -name "Chart.yaml" || true
-                    exit 1
-                fi
+                # Octopus extracts the package to a subdirectory named after the package
+                # The structure is: charts/charts/frontend (double charts)
+                CHART_DIR="charts/charts/frontend"
                 
                 echo "Chart directory: $CHART_DIR"
+                
+                # Verify chart exists
+                if [ ! -f "$CHART_DIR/Chart.yaml" ]; then
+                    echo "ERROR: Chart.yaml not found at $CHART_DIR"
+                    echo "Listing package contents:"
+                    find charts -name "Chart.yaml" || true
+                    exit 1
+                fi
                 
                 RELEASE_NAME="tunefy-frontend"
                 NAMESPACE="tunefy-dev"
@@ -199,22 +196,19 @@ step "deploy-helm-backend-colornext" {
                 WORK_DIR="$(pwd)"
                 echo "Working directory: $WORK_DIR"
                 
-                # List contents to debug
-                echo "Listing current directory:"
-                ls -la
-                
-                # Find the charts directory
-                if [ -d "charts/backend" ]; then
-                    CHART_DIR="charts/backend"
-                elif [ -d "backend" ]; then
-                    CHART_DIR="backend"
-                else
-                    echo "ERROR: Cannot find backend chart directory"
-                    find . -name "Chart.yaml" || true
-                    exit 1
-                fi
+                # Octopus extracts the package to a subdirectory named after the package
+                # The structure is: charts/charts/backend (double charts)
+                CHART_DIR="charts/charts/backend"
                 
                 echo "Chart directory: $CHART_DIR"
+                
+                # Verify chart exists
+                if [ ! -f "$CHART_DIR/Chart.yaml" ]; then
+                    echo "ERROR: Chart.yaml not found at $CHART_DIR"
+                    echo "Listing package contents:"
+                    find charts -name "Chart.yaml" || true
+                    exit 1
+                fi
                 
                 RELEASE_NAME="tunefy-backend"
                 NAMESPACE="tunefy-dev"
