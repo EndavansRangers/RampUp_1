@@ -23,9 +23,11 @@ variable "Octopus.Release.Number" {
         description = "Automatic versioning based on GitVersion"
     }
 }
-variable \"Kubernetes.Token\" {
-    value \"REPLACE_WITH_K8S_TOKEN\" {
-        environment = [\"dev\"]
-        description = \"Kubernetes authentication token for cluster access\"
+
+variable "Kubernetes.Token" {
+    value "eyJhbGciOiJSUzI1NiIsImtpZCI6Ii1fNE54N2dRcldTYXUtWGhmTGQzRmZVd1lVV3NrM1B5bDB2LVRsNnp4WWMifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjLmNsdXN0ZXIubG9jYWwiXSwiZXhwIjoyMDc0NzA4MTA0LCJpYXQiOjE3NTkzNDgxMDQsImlzcyI6Imh0dHBzOi8va3ViZXJuZXRlcy5kZWZhdWx0LnN2Yy5jbHVzdGVyLmxvY2FsIiwianRpIjoiYmJlMDlmODYtNzNhNy00ZTA3LTlmYTQtYWZlNTFlZGM3NjQzIiwia3ViZXJuZXRlcy5pbyI6eyJuYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsInNlcnZpY2VhY2NvdW50Ijp7Im5hbWUiOiJhZG1pbiIsInVpZCI6IjlmN2JkYTUzLWRiZjEtNGZlNC1hNjc0LWE4ZTExZmI4NGVhMSJ9fSwibmJmIjoxNzU5MzQ4MTA0LCJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6a3ViZS1zeXN0ZW06YWRtaW4ifQ.OJdLnzK78aK8ySZNBFDnliV4PnTNp1OZvfDemFQ3U6VLHZpQhWKffwViNugX8vCoHPF9X95wb6lyKRUeDwpiXygPOtDRSh6gt6IoTmh2Yiq9MLwNB2qEnSZbZAz2OuGOreNe4V5Dxary2NLqnMaFHG6TI8IcIgQhd-G_yNmqke9Yi2uHo8U31YVoeONI1SGxnM_tZpjuaGDhpIGXA7SL2WDQcW6yDSiKXVhYn2hkLooYlu6ZBgGfWUVGfms-aIE9jbk3Z6TuHK4_ASUxPCPkOV9nMg6Ce16yoWA5VyExz8mnWzyZ47ygxi0yhRXO99r6N7aBHjhJhePCvjII1rIfkA" {
+        environment = ["dev"]
+        description = "Kubernetes authentication token for cluster access"
     }
 }
+
