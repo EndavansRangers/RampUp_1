@@ -103,24 +103,35 @@ object Tunefy : BuildType({
                 echo "Packaging Helm charts for Octopus..."
                 
                 # Crear directorio temporal para el paquete
-                mkdir -p /tmp/charts-package/charts
+                PACKAGE_DIR="/tmp/charts-${'$'}DOCKER_TAG"
+                mkdir -p "${'$'}PACKAGE_DIR/charts"
                 
                 # Copiar los charts
-                cp -r charts/frontend /tmp/charts-package/charts/
-                cp -r charts/backend /tmp/charts-package/charts/
+                cp -r charts/frontend "${'$'}PACKAGE_DIR/charts/"
+                cp -r charts/backend "${'$'}PACKAGE_DIR/charts/"
                 
-                # Crear el archivo zip
-                cd /tmp/charts-package
-                zip -r charts.${'$'}DOCKER_TAG.zip charts/
+                # Crear el archivo tar.gz (compatible con Octopus)
+                cd "${'$'}PACKAGE_DIR"
+                tar -czf charts.${'$'}DOCKER_TAG.tar.gz charts/
                 
                 # Subir a Octopus usando el API
                 echo "Uploading charts package to Octopus..."
-                curl -X POST "${'$'}OCTO_URL/api/packages/raw" \
+                UPLOAD_RESULT=${'$'}(curl -s -w "\n%{http_code}" -X POST "${'$'}OCTO_URL/api/packages/raw" \
                   -H "X-Octopus-ApiKey: ${'$'}OCTO_API_KEY" \
-                  -F "data=@charts.${'$'}DOCKER_TAG.zip" \
-                  -F "overwriteMode=OverwriteExisting"
+                  -F "data=@charts.${'$'}DOCKER_TAG.tar.gz")
                 
-                echo "Charts package uploaded successfully"
+                HTTP_CODE=${'$'}(echo "${'$'}UPLOAD_RESULT" | tail -n1)
+                
+                if [ "${'$'}HTTP_CODE" = "201" ] || [ "${'$'}HTTP_CODE" = "200" ]; then
+                    echo "✅ Charts package uploaded successfully (HTTP ${'$'}HTTP_CODE)"
+                else
+                    echo "❌ Failed to upload package (HTTP ${'$'}HTTP_CODE)"
+                    echo "${'$'}UPLOAD_RESULT"
+                    exit 1
+                fi
+                
+                # Limpiar
+                rm -rf "${'$'}PACKAGE_DIR"
             """.trimIndent()
         }
         script {
