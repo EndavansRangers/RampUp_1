@@ -1,0 +1,59 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Chart.Name }}-init
+  namespace: tunefy-dev
+data:
+  init.sql: |
+    -- Script para crear la base de datos de Tunefy
+    -- Tabla principal para almacenar todas las canciones mezcladas
+    CREATE TABLE IF NOT EXISTS merged_songs (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        song_name VARCHAR(500) NOT NULL,
+        artist_name VARCHAR(500) NOT NULL,
+        popularity INTEGER DEFAULT 0,
+        votes INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Tabla para almacenar las canciones más populares (top 20)
+    CREATE TABLE IF NOT EXISTS top_songs (
+        id SERIAL PRIMARY KEY,
+        user_id VARCHAR(255) NOT NULL,
+        song_name VARCHAR(500) NOT NULL,
+        artist_name VARCHAR(500) NOT NULL,
+        popularity INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- Índices para mejorar el rendimiento
+    CREATE INDEX IF NOT EXISTS idx_merged_songs_user_id ON merged_songs(user_id);
+    CREATE INDEX IF NOT EXISTS idx_merged_songs_popularity ON merged_songs(popularity);
+    CREATE INDEX IF NOT EXISTS idx_merged_songs_votes ON merged_songs(votes);
+    CREATE INDEX IF NOT EXISTS idx_merged_songs_song_name ON merged_songs(song_name);
+    CREATE INDEX IF NOT EXISTS idx_top_songs_user_id ON top_songs(user_id);
+    CREATE INDEX IF NOT EXISTS idx_top_songs_popularity ON top_songs(popularity);
+
+    -- Función para actualizar el timestamp de updated_at automáticamente
+    CREATE OR REPLACE FUNCTION update_updated_at_column()
+    RETURNS TRIGGER AS $$
+    BEGIN
+        NEW.updated_at = CURRENT_TIMESTAMP;
+        RETURN NEW;
+    END;
+    $$ language 'plpgsql';
+
+    -- Trigger para actualizar automáticamente el campo updated_at en merged_songs
+    CREATE TRIGGER update_merged_songs_updated_at 
+        BEFORE UPDATE ON merged_songs
+        FOR EACH ROW
+        EXECUTE FUNCTION update_updated_at_column();
+
+    -- Insertar datos de prueba (opcional)
+    INSERT INTO merged_songs (user_id, song_name, artist_name, popularity, votes)
+    VALUES 
+        ('user1', 'Test Song 1', 'Test Artist 1', 85, 10),
+        ('user1', 'Test Song 2', 'Test Artist 2', 90, 15)
+    ON CONFLICT DO NOTHING;

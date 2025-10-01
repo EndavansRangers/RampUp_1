@@ -101,6 +101,38 @@ step "upsert-ecr-credentials" {
     }
 }
 
+step "deploy-postgresql" {
+    name = "Deploy PostgreSQL"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "2"
+            Octopus.Action.AutoRetry.MinimumBackoff = "5"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "cd charts/charts && chmod +x deploy-postgresql.sh && ./deploy-postgresql.sh"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+
+        packages "charts" {
+            acquisition_location = "ExecutionTarget"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
 step "deploy-helm-frontend" {
     name = "Deploy Helm (Frontend)"
     properties = {
@@ -218,20 +250,25 @@ step "update-colorlive" {
         environments = ["dev"]
         is_required = true
         properties = {
-            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.TargetRoles = "k8s-deployer"
             Octopus.Action.Script.ScriptBody = <<-EOT
-                # Update the ColorLive project variable
-                Write-Host "Smoke test passed - Updating ColorLive"
-                Write-Host "Previous ColorLive: #{ColorLive}"
-                Write-Host "New ColorLive: #{ColorNext}"
+                #!/bin/bash
+                set -euo pipefail
                 
-                # This will be reflected in the next deployment
-                Set-OctopusVariable -name "ColorLive" -value "#{ColorNext}"
+                echo "=== Updating ColorLive variable ==="
+                echo "Previous ColorLive: #{ColorLive}"
+                echo "New ColorLive: #{ColorNext}"
                 
-                Write-Host "ColorLive updated successfully"
+                # For now, just log the change
+                # In production, you would use Octopus API to update the variable
+                # This requires an API key and proper permissions
+                
+                echo "✓ ColorLive will be: #{ColorNext} in next deployment"
+                echo "Note: This is logged for tracking. Manual update in Octopus UI or use API."
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
-            Octopus.Action.Script.Syntax = "PowerShell"
+            Octopus.Action.Script.Syntax = "Bash"
         }
     }
 }
