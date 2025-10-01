@@ -10,6 +10,18 @@ step "setup-kubeconfig" {
                 #!/bin/bash
                 set -euo pipefail
                 
+                echo "=== Installing kubectl if not available ==="
+                if ! command -v kubectl &> /dev/null; then
+                    echo "Installing kubectl..."
+                    curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+                    chmod +x kubectl
+                    export PATH="$PATH:$PWD"
+                    echo "kubectl installed in current directory"
+                else
+                    echo "kubectl already available: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+                fi
+                
+                echo ""
                 echo "Setting up kubeconfig for Kubernetes access..."
                 
                 # Create kubeconfig directory
@@ -41,7 +53,7 @@ step "setup-kubeconfig" {
                 echo "Kubeconfig created successfully"
                 
                 # Test connection using kubectl
-                kubectl version --short || echo "kubectl connection test - will verify in next steps"
+                ./kubectl version --short 2>/dev/null || kubectl version --short || echo "kubectl connection test - will verify in next steps"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
@@ -62,22 +74,46 @@ step "upsert-ecr-credentials" {
                 #!/bin/bash
                 set -euo pipefail
                 
+                echo "=== Ensuring tools are available ==="
+                
+                # Install kubectl if not available
+                if ! command -v kubectl &> /dev/null; then
+                    if [ ! -f ./kubectl ]; then
+                        echo "Installing kubectl..."
+                        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+                        chmod +x kubectl
+                    fi
+                    export PATH="$PATH:$PWD"
+                fi
+                
+                # Install AWS CLI if not available (without sudo)
+                if ! command -v aws &> /dev/null; then
+                    echo "Installing AWS CLI..."
+                    curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                    unzip -q awscliv2.zip 2>/dev/null || {
+                        echo "unzip not available, extracting manually..."
+                        # Try python if available
+                        python3 -m zipfile -e awscliv2.zip . 2>/dev/null || {
+                            echo "Cannot extract AWS CLI, using pre-installed version"
+                            export PATH="/usr/local/bin:$PATH"
+                        }
+                    }
+                    if [ -d ./aws ]; then
+                        ./aws/install --bin-dir $PWD/aws-bin --install-dir $PWD/aws-cli || {
+                            echo "Using pre-installed AWS CLI"
+                        }
+                        export PATH="$PWD/aws-bin:$PATH"
+                        rm -rf aws awscliv2.zip
+                    fi
+                fi
+                
+                echo ""
                 echo "Upserting ECR pull secret..."
                 
                 # Get AWS credentials from IAM Role (Octopus runs on EC2 with IAM profile)
                 ACCOUNT_ID="365074502389"
                 REGION="us-east-1"
                 NAMESPACE="tunefy-dev"
-                
-                # Install unzip and AWS CLI if not available
-                if ! command -v aws &> /dev/null; then
-                    echo "Installing AWS CLI..."
-                    sudo apt-get update -qq && sudo apt-get install -y unzip
-                    curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                    unzip -q awscliv2.zip
-                    sudo ./aws/install
-                    rm -rf aws awscliv2.zip
-                fi
                 
                 # Get ECR login token using IAM Role
                 TOKEN=$(aws ecr get-login-password --region "$REGION")
@@ -117,6 +153,30 @@ step "deploy-helm-frontend" {
                 #!/bin/bash
                 set -euo pipefail
                 
+                echo "=== Ensuring tools are available ==="
+                
+                # Install kubectl if not available
+                if ! command -v kubectl &> /dev/null; then
+                    if [ ! -f ./kubectl ]; then
+                        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+                        chmod +x kubectl
+                    fi
+                    export PATH="$PATH:$PWD"
+                fi
+                
+                # Install helm if not available
+                if ! command -v helm &> /dev/null; then
+                    if [ ! -f ./helm ]; then
+                        echo "Installing helm..."
+                        curl -fsSL https://get.helm.sh/helm-v3.13.1-linux-amd64.tar.gz | tar xz
+                        mv linux-amd64/helm ./helm
+                        rm -rf linux-amd64
+                        chmod +x helm
+                    fi
+                    export PATH="$PATH:$PWD"
+                fi
+                
+                echo ""
                 echo "Deploying Frontend Helm chart..."
                 
                 RELEASE_NAME="tunefy-frontend"
@@ -169,6 +229,30 @@ step "deploy-helm-backend-colornext" {
                 #!/bin/bash
                 set -euo pipefail
                 
+                echo "=== Ensuring tools are available ==="
+                
+                # Install kubectl if not available
+                if ! command -v kubectl &> /dev/null; then
+                    if [ ! -f ./kubectl ]; then
+                        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+                        chmod +x kubectl
+                    fi
+                    export PATH="$PATH:$PWD"
+                fi
+                
+                # Install helm if not available
+                if ! command -v helm &> /dev/null; then
+                    if [ ! -f ./helm ]; then
+                        echo "Installing helm..."
+                        curl -fsSL https://get.helm.sh/helm-v3.13.1-linux-amd64.tar.gz | tar xz
+                        mv linux-amd64/helm ./helm
+                        rm -rf linux-amd64
+                        chmod +x helm
+                    fi
+                    export PATH="$PATH:$PWD"
+                fi
+                
+                echo ""
                 echo "Deploying Backend Helm chart (ColorNext: #{ColorNext})..."
                 
                 RELEASE_NAME="tunefy-backend"
@@ -221,6 +305,16 @@ step "smoke-test" {
                 #!/bin/bash
                 set -euo pipefail
                 
+                echo "=== Ensuring kubectl is available ==="
+                if ! command -v kubectl &> /dev/null; then
+                    if [ ! -f ./kubectl ]; then
+                        curl -LO "https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl"
+                        chmod +x kubectl
+                    fi
+                    export PATH="$PATH:$PWD"
+                fi
+                
+                echo ""
                 echo "Running smoke test on backend service..."
                 echo "Testing ColorNext: #{ColorNext}"
                 
