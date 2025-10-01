@@ -104,29 +104,31 @@ object Tunefy : BuildType({
                 
                 # Crear directorio temporal para el paquete
                 PACKAGE_DIR="/tmp/charts-${'$'}DOCKER_TAG"
-                mkdir -p "${'$'}PACKAGE_DIR/charts"
+                mkdir -p "${'$'}PACKAGE_DIR"
                 
-                # Copiar los charts
-                cp -r charts/frontend "${'$'}PACKAGE_DIR/charts/"
-                cp -r charts/backend "${'$'}PACKAGE_DIR/charts/"
+                # Copiar los charts directamente (sin subdirectorio extra)
+                cp -r charts "${'$'}PACKAGE_DIR/"
                 
-                # Crear el archivo tar.gz (compatible con Octopus)
+                # Crear el archivo tar.gz con el formato correcto para Octopus
+                # El nombre debe ser: charts.VERSION.tar.gz
                 cd "${'$'}PACKAGE_DIR"
-                tar -czf charts.${'$'}DOCKER_TAG.tar.gz charts/
+                tar -czf "charts.${'$'}DOCKER_TAG.tar.gz" charts/
                 
                 # Subir a Octopus usando el API
-                echo "Uploading charts package to Octopus..."
+                echo "Uploading package: charts.${'$'}DOCKER_TAG.tar.gz"
                 UPLOAD_RESULT=${'$'}(curl -s -w "\n%{http_code}" -X POST "${'$'}OCTO_URL/api/packages/raw" \
                   -H "X-Octopus-ApiKey: ${'$'}OCTO_API_KEY" \
                   -F "data=@charts.${'$'}DOCKER_TAG.tar.gz")
                 
                 HTTP_CODE=${'$'}(echo "${'$'}UPLOAD_RESULT" | tail -n1)
+                RESPONSE_BODY=${'$'}(echo "${'$'}UPLOAD_RESULT" | head -n -1)
                 
                 if [ "${'$'}HTTP_CODE" = "201" ] || [ "${'$'}HTTP_CODE" = "200" ]; then
                     echo "✅ Charts package uploaded successfully (HTTP ${'$'}HTTP_CODE)"
+                    echo "Response: ${'$'}RESPONSE_BODY"
                 else
                     echo "❌ Failed to upload package (HTTP ${'$'}HTTP_CODE)"
-                    echo "${'$'}UPLOAD_RESULT"
+                    echo "Response: ${'$'}RESPONSE_BODY"
                     exit 1
                 fi
                 
