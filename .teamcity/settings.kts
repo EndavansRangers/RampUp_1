@@ -128,8 +128,9 @@ NUSPEC_EOF
                 sed -i "s/\${'$'}DOCKER_TAG/${'$'}DOCKER_TAG/g" "${'$'}PACKAGE_DIR/charts.nuspec"
                 
                 # Crear el archivo tar.gz desde dentro del directorio
+                # IMPORTANTE: El .nuspec DEBE ser el primer archivo en el tar
                 cd "${'$'}PACKAGE_DIR"
-                tar -czf "charts.${'$'}DOCKER_TAG.tar.gz" charts/ charts.nuspec
+                tar -czf "charts.${'$'}DOCKER_TAG.tar.gz" charts.nuspec charts/
                 
                 # Subir a Octopus usando el API
                 echo "Uploading package: charts.${'$'}DOCKER_TAG.tar.gz with nuspec metadata"
