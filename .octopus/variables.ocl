@@ -1,11 +1,25 @@
 variable "ColorLive" {
-    value {}
+    value "blue" {
+        environment = ["dev"]
+        description = "Current active color (blue/green)"
+    }
 }
 
 variable "ColorNext" {
-    value {}
+    value "blue" {
+        environment = ["dev"]
+        prompt {
+            description = "Color to deploy (blue/green) - will be swapped after successful smoke test"
+            label = "Deployment Color"
+            display_settings = {
+                Octopus.ControlType = "SingleLineText"
+            }
+        }
+    }
 }
 
 variable "Octopus.Release.Number" {
-    value {}
+    value "#{Octopus.Version.LastMajor}.#{Octopus.Version.LastMinor}.#{Octopus.Version.NextPatch}" {
+        description = "Automatic versioning based on GitVersion"
+    }
 }

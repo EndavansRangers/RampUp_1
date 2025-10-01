@@ -48,6 +48,13 @@ object Tunefy : BuildType({
         root(DslContext.settingsRoot)
     }
 
+    features {
+        feature {
+            type = "JetBrains.GitVersion"
+            param("versionFormat", "%GitVersion.SemVer%")
+        }
+    }
+
     steps {
         script {
             name = "Login ECR"
