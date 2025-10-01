@@ -124,10 +124,10 @@ object Tunefy : BuildType({
                 RESPONSE_BODY=${'$'}(echo "${'$'}UPLOAD_RESULT" | head -n -1)
                 
                 if [ "${'$'}HTTP_CODE" = "201" ] || [ "${'$'}HTTP_CODE" = "200" ]; then
-                    echo "✅ Charts package uploaded successfully (HTTP ${'$'}HTTP_CODE)"
+                    echo "Charts package uploaded successfully (HTTP ${'$'}HTTP_CODE)"
                     echo "Response: ${'$'}RESPONSE_BODY"
                 else
-                    echo "❌ Failed to upload package (HTTP ${'$'}HTTP_CODE)"
+                    echo "Failed to upload package (HTTP ${'$'}HTTP_CODE)"
                     echo "Response: ${'$'}RESPONSE_BODY"
                     exit 1
                 fi
