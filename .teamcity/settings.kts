@@ -97,6 +97,33 @@ object Tunefy : BuildType({
             """.trimIndent()
         }
         script {
+            name = "Package Helm Charts for Octopus"
+            id = "Package_Helm_Charts"
+            scriptContent = """
+                echo "Packaging Helm charts for Octopus..."
+                
+                # Crear directorio temporal para el paquete
+                mkdir -p /tmp/charts-package/charts
+                
+                # Copiar los charts
+                cp -r charts/frontend /tmp/charts-package/charts/
+                cp -r charts/backend /tmp/charts-package/charts/
+                
+                # Crear el archivo zip
+                cd /tmp/charts-package
+                zip -r charts.${'$'}DOCKER_TAG.zip charts/
+                
+                # Subir a Octopus usando el API
+                echo "Uploading charts package to Octopus..."
+                curl -X POST "${'$'}OCTO_URL/api/packages/raw" \
+                  -H "X-Octopus-ApiKey: ${'$'}OCTO_API_KEY" \
+                  -F "data=@charts.${'$'}DOCKER_TAG.zip" \
+                  -F "overwriteMode=OverwriteExisting"
+                
+                echo "Charts package uploaded successfully"
+            """.trimIndent()
+        }
+        script {
             name = "Octopus: create & deploy release (a Dev)"
             id = "Octopus_create_deploy_release_a_Dev"
             scriptContent = """
