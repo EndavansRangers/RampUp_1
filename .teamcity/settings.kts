@@ -105,19 +105,31 @@ object Tunefy : BuildType({
                 REL="${'$'}DOCKER_TAG"
                 ENV="Dev"
                 COLOR_NEXT="${'$'}{COLOR_NEXT:-blue}"  # alterna en cada build si quieres
+                GIT_BRANCH="${'$'}(git rev-parse --abbrev-ref HEAD)"  # Branch actual (develop, main, etc)
+                
+                echo "Creating Octopus release ${'$'}REL from branch ${'$'}GIT_BRANCH"
                 
                 # Usar --network host para alcanzar Octopus server en la red privada
+                # --gitRef es requerido para proyectos con Version Control
                 docker run --rm --network host \
+                  -v "${'$'}PWD:/repo" -w /repo \
                   octopusdeploy/octo:9.1.7 \
                   create-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
-                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" --ignoreExisting \
+                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
+                  --gitRef "${'$'}GIT_BRANCH" --ignoreExisting \
                   --variable "ColorNext:${'$'}COLOR_NEXT"
                 
-                docker run --rm --network host \
-                  octopusdeploy/octo:9.1.7 \
-                  deploy-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
-                  --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
-                  --deployTo "${'$'}ENV" --progress --waitForDeployment
+                if [ ${'$'}? -eq 0 ]; then
+                    echo "Release created successfully, deploying..."
+                    docker run --rm --network host \
+                      octopusdeploy/octo:9.1.7 \
+                      deploy-release --server "${'$'}OCTO_URL" --apiKey "${'$'}OCTO_API_KEY" \
+                      --space "${'$'}SPACE" --project "${'$'}PROJECT" --releaseNumber "${'$'}REL" \
+                      --deployTo "${'$'}ENV" --progress --waitForDeployment
+                else
+                    echo "Failed to create release"
+                    exit 1
+                fi
             """.trimIndent()
         }
     }
