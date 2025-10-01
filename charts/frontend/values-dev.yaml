@@ -1,0 +1,50 @@
+image:
+  repository: 365074502389.dkr.ecr.us-east-1.amazonaws.com/tunefy-frontend-dev
+  tag: "0.0.0-local"   # Octopus lo reemplaza por #{Octopus.Release.Number}
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: ecr-creds
+
+replicaCount: 2
+
+service:
+  type: NodePort
+  port: 80
+  targetPort: 80
+
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: instance
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
+    alb.ingress.kubernetes.io/healthcheck-path: /
+  hosts:
+    - host: app.dev.tunefy.local  # Cambiar por tu dominio
+      paths:
+        - path: /
+          pathType: Prefix
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 30
+  periodSeconds: 10
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 10
+  periodSeconds: 5
