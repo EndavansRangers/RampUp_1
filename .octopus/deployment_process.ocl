@@ -46,6 +46,7 @@ step "setup-kubeconfig" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
     }
@@ -88,6 +89,7 @@ step "upsert-ecr-credentials" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
     }
@@ -130,6 +132,7 @@ step "deploy-helm-frontend" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
 
@@ -185,6 +188,7 @@ step "deploy-helm-backend-colornext" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
 
@@ -236,6 +240,7 @@ step "smoke-test" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.TargetRoles = "k8s-deployer"
         }
     }
