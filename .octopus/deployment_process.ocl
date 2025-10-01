@@ -53,7 +53,7 @@ step "setup-kubeconfig" {
                 echo "Kubeconfig created successfully"
                 
                 # Test connection using kubectl
-                ./kubectl version --short 2>/dev/null || kubectl version --short || echo "kubectl connection test - will verify in next steps"
+                ./kubectl version --client 2>/dev/null || echo "kubectl connection test - will verify in next steps"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
@@ -86,24 +86,22 @@ step "upsert-ecr-credentials" {
                     export PATH="$PATH:$PWD"
                 fi
                 
-                # Install AWS CLI if not available (without sudo)
+                # Check for AWS CLI in common locations
                 if ! command -v aws &> /dev/null; then
-                    echo "Installing AWS CLI..."
-                    curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                    unzip -q awscliv2.zip 2>/dev/null || {
-                        echo "unzip not available, extracting manually..."
-                        # Try python if available
-                        python3 -m zipfile -e awscliv2.zip . 2>/dev/null || {
-                            echo "Cannot extract AWS CLI, using pre-installed version"
-                            export PATH="/usr/local/bin:$PATH"
-                        }
-                    }
-                    if [ -d ./aws ]; then
-                        ./aws/install --bin-dir $PWD/aws-bin --install-dir $PWD/aws-cli || {
-                            echo "Using pre-installed AWS CLI"
-                        }
-                        export PATH="$PWD/aws-bin:$PATH"
-                        rm -rf aws awscliv2.zip
+                    echo "Searching for AWS CLI..."
+                    # Try common installation paths
+                    for path in /usr/local/bin/aws /usr/bin/aws /opt/aws-cli/bin/aws; do
+                        if [ -f "$path" ]; then
+                            export PATH="$(dirname $path):$PATH"
+                            echo "Found AWS CLI at $path"
+                            break
+                        fi
+                    done
+                    
+                    # If still not found, fail gracefully
+                    if ! command -v aws &> /dev/null; then
+                        echo "ERROR: AWS CLI not found. Please install it on the Octopus host."
+                        exit 1
                     fi
                 fi
                 
@@ -116,15 +114,26 @@ step "upsert-ecr-credentials" {
                 NAMESPACE="tunefy-dev"
                 
                 # Get ECR login token using IAM Role
-                TOKEN=$(aws ecr get-login-password --region "$REGION")
+                echo "Getting ECR login token using AWS CLI..."
+                if ! TOKEN=$(aws ecr get-login-password --region "$REGION" 2>&1); then
+                    echo "ERROR: Failed to get ECR token"
+                    echo "AWS CLI output: $TOKEN"
+                    echo "Checking AWS CLI version..."
+                    aws --version || echo "AWS CLI not available"
+                    echo "Checking IAM credentials..."
+                    aws sts get-caller-identity || echo "No IAM credentials available"
+                    exit 1
+                fi
+                
+                echo "ECR token obtained, creating Kubernetes secret..."
                 
                 # Create or update secret using kubectl
-                kubectl create secret docker-registry ecr-creds \
+                ./kubectl create secret docker-registry ecr-creds \
                   --docker-server=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com \
                   --docker-username=AWS \
                   --docker-password="$TOKEN" \
                   --namespace=$NAMESPACE \
-                  --dry-run=client -o yaml | kubectl apply -f -
+                  --dry-run=client -o yaml | ./kubectl apply -f -
                 
                 echo "ECR credentials updated in namespace $NAMESPACE"
                 EOT
