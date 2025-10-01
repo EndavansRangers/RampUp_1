@@ -220,18 +220,30 @@ step "deploy-helm-backend-colornext" {
         }
     }
 }
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                SelectionMode = "immediate"
+                Extract = "True"
+            }
+        }
+    }
+}
 
 step "smoke-test" {
     name = "Smoke test"
+    properties = {
+        Octopus.Action.TargetRoles = "dev,k8s"
+    }
 
     action {
-        action_type = "Octopus.Script"
+        action_type = "Octopus.KubernetesRunScript"
         environments = ["dev"]
         is_required = true
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "3"
             Octopus.Action.AutoRetry.MinimumBackoff = "15"
-            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptBody = <<-EOT
                 #!/bin/bash
                 set -euo pipefail
@@ -239,15 +251,8 @@ step "smoke-test" {
                 echo "Running smoke test on backend service..."
                 echo "Testing ColorNext: #{ColorNext}"
                 
-                NAMESPACE="tunefy-dev"
-                POD_NAME="smoke-test-$(date +%s)"
-                
-                # Run smoke test using kubectl container
-                docker run --rm --network host \
-                  -v ~/.kube:/root/.kube \
-                  bitnami/kubectl:1.28 \
-                  run "$POD_NAME" \
-                  --namespace="$NAMESPACE" \
+                # Probar el backend en el Service interno (service apunta a ColorNext)
+                kubectl -n tunefy-dev run smoke-test-#{Octopus.Release.Number | Replace "[^a-z0-9-]" "-" | ToLower} \
                   --restart=Never \
                   --image=curlimages/curl:8.10.1 \
                   --rm -i \
@@ -258,15 +263,20 @@ step "smoke-test" {
                 
                 # Set output variable for next step
                 set_octopusvariable "SmokeTestResult" "success"
+                
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
+            OctopusUseBundledTooling = "False"
         }
     }
 }
 
 step "update-colorlive" {
     name = "Update ColorLive"
+    properties = {
+        Octopus.Action.TargetRoles = "dev,k8s"
+    }
     condition = "Success"
 
     action {
@@ -288,6 +298,7 @@ step "update-colorlive" {
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "PowerShell"
+            OctopusUseBundledTooling = "False"
         }
     }
 }
