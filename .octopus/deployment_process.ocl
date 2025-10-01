@@ -79,7 +79,6 @@ step "deploy-helm-frontend" {
                 SelectionMode = "immediate"
                 Extract = "True"
             }
-            version = "#{Octopus.Release.Number}"
         }
     }
 }
@@ -127,7 +126,6 @@ step "deploy-helm-backend-colornext" {
                 SelectionMode = "immediate"
                 Extract = "True"
             }
-            version = "#{Octopus.Release.Number}"
         }
     }
 }
