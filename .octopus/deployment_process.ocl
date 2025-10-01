@@ -141,18 +141,15 @@ step "deploy-helm-frontend" {
                 
                 RELEASE_NAME="tunefy-frontend"
                 NAMESPACE="tunefy-dev"
-                IMAGE_TAG="#{Octopus.Release.Number}"
                 
                 echo "Release Number from Octopus: #{Octopus.Release.Number}"
-                echo "IMAGE_TAG variable: $IMAGE_TAG"
                 
-                # Deploy using Helm
+                # Deploy using Helm - use Octopus variables directly in the command
                 helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
                   --namespace "$NAMESPACE" \
                   --create-namespace \
-                  --set image.tag="$IMAGE_TAG" \
+                  --set image.tag="#{Octopus.Release.Number}" \
                   --values "$CHART_DIR/values-dev.yaml" \
-                  --atomic \
                   --timeout 5m \
                   --wait \
                   --debug
@@ -216,26 +213,23 @@ step "deploy-helm-backend-colornext" {
                 
                 RELEASE_NAME="tunefy-backend"
                 NAMESPACE="tunefy-dev"
-                IMAGE_TAG="#{Octopus.Release.Number}"
-                COLOR_NEXT="#{ColorNext}"
                 
                 echo "Release Number from Octopus: #{Octopus.Release.Number}"
-                echo "IMAGE_TAG variable: $IMAGE_TAG"
-                echo "ColorNext variable: $COLOR_NEXT"
+                echo "ColorNext: #{ColorNext}"
                 
-                # Deploy using Helm
+                # Deploy using Helm - use Octopus variables directly in the command
                 helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
                   --namespace "$NAMESPACE" \
                   --create-namespace \
-                  --set image.tag="$IMAGE_TAG" \
-                  --set color="$COLOR_NEXT" \
-                  --set service.selector.colorLive="$COLOR_NEXT" \
+                  --set image.tag="#{Octopus.Release.Number}" \
+                  --set color="#{ColorNext}" \
+                  --set service.selector.colorLive="#{ColorNext}" \
                   --values "$CHART_DIR/values-dev.yaml" \
                   --timeout 5m \
                   --wait \
                   --debug
                 
-                echo "✓ Backend deployed successfully with color: $COLOR_NEXT"
+                echo "✓ Backend deployed successfully with color: #{ColorNext}"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
