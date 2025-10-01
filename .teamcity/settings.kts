@@ -102,35 +102,22 @@ object Tunefy : BuildType({
             scriptContent = """
                 echo "Packaging Helm charts for Octopus..."
                 
+                # Actualizar la versión en el Chart.yaml raíz para que coincida con DOCKER_TAG
+                sed -i "s/^version: .*/version: ${'$'}DOCKER_TAG/" charts/Chart.yaml
+                sed -i "s/^appVersion: .*/appVersion: \"${'$'}DOCKER_TAG\"/" charts/Chart.yaml
+                
                 # Crear directorio temporal para el paquete
                 PACKAGE_DIR="/tmp/charts-package-${'$'}DOCKER_TAG"
                 rm -rf "${'$'}PACKAGE_DIR"
                 mkdir -p "${'$'}PACKAGE_DIR"
                 
-                # Copiar los charts
+                # Copiar SOLO el directorio charts (que ahora tiene Chart.yaml raíz con name: charts)
                 cp -r charts "${'$'}PACKAGE_DIR/"
                 
-                # Crear archivo .nuspec para especificar el packageId
-                cat > "${'$'}PACKAGE_DIR/charts.nuspec" << 'NUSPEC_EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
-  <metadata>
-    <id>charts</id>
-    <version>${'$'}DOCKER_TAG</version>
-    <title>Tunefy Helm Charts</title>
-    <authors>TeamCity</authors>
-    <description>Helm charts for Tunefy application (frontend and backend)</description>
-  </metadata>
-</package>
-NUSPEC_EOF
-                
-                # Reemplazar la versión en el nuspec
-                sed -i "s/\${'$'}DOCKER_TAG/${'$'}DOCKER_TAG/g" "${'$'}PACKAGE_DIR/charts.nuspec"
-                
-                # Crear el archivo tar.gz desde dentro del directorio
-                # IMPORTANTE: El .nuspec DEBE ser el primer archivo en el tar
+                # Crear el archivo tar.gz
+                # Octopus leerá charts/Chart.yaml y usará name: charts como packageId
                 cd "${'$'}PACKAGE_DIR"
-                tar -czf "charts.${'$'}DOCKER_TAG.tar.gz" charts.nuspec charts/
+                tar -czf "charts.${'$'}DOCKER_TAG.tar.gz" charts/
                 
                 # Subir a Octopus usando el API
                 echo "Uploading package: charts.${'$'}DOCKER_TAG.tar.gz with nuspec metadata"
