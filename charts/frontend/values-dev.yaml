@@ -1,6 +1,6 @@
 image:
   repository: 365074502389.dkr.ecr.us-east-1.amazonaws.com/tunefy-frontend-dev
-  tag: "0.0.0-local"   # Octopus lo reemplaza por #{Octopus.Release.Number}
+  tag: "#{Octopus.Release.Number}"
   pullPolicy: IfNotPresent
 
 imagePullSecrets:
