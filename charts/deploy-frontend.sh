@@ -22,13 +22,21 @@ if [ ! -f "$CHART_DIR/Chart.yaml" ]; then
     exit 1
 fi
 
-# Deploy using Helm
+# Check if there's a stuck release
+if helm list -n "$NAMESPACE" | grep -q "$RELEASE_NAME.*pending"; then
+    echo "WARNING: Found stuck release, attempting rollback..."
+    helm rollback "$RELEASE_NAME" 0 -n "$NAMESPACE" --wait || true
+    sleep 2
+fi
+
+# Deploy using Helm with atomic flag (auto-rollback on failure)
 helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
   --namespace "$NAMESPACE" \
   --create-namespace \
   --set image.tag="$IMAGE_TAG" \
   --values "$CHART_DIR/values-dev.yaml" \
-  --timeout 5m \
-  --wait
+  --timeout 3m \
+  --wait \
+  --atomic
 
 echo "✓ Frontend deployed successfully"
