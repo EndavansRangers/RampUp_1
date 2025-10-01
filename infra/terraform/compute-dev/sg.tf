@@ -154,8 +154,8 @@ resource "aws_security_group" "cicd" {
     from_port       = 10943
     to_port         = 10943
     protocol        = "tcp"
-    security_groups = [aws_security_group.bastion.id]
-  } # Octopus Tentacle
+    security_groups = [aws_security_group.bastion.id, aws_security_group.cp.id]
+  } # Octopus Tentacle Polling (from bastion and CP)
 
   egress {
     from_port   = 0
@@ -175,6 +175,17 @@ resource "aws_security_group_rule" "wk_to_cp_api" {
   source_security_group_id = aws_security_group.wk.id
   security_group_id        = aws_security_group.cp.id
   description              = "Workers to CP API server"
+}
+
+# Octopus -> CP Tentacle (Listening mode on port 10933)
+resource "aws_security_group_rule" "octopus_to_cp_tentacle" {
+  type                     = "ingress"
+  from_port                = 10933
+  to_port                  = 10933
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.cicd.id
+  security_group_id        = aws_security_group.cp.id
+  description              = "Octopus to CP Tentacle"
 }
 
 # BGP rules for Calico
