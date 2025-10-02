@@ -125,11 +125,8 @@ object Tunefy : BuildType({
                 sed -i "s/^version: .*/version: ${'$'}HELM_VERSION/" charts/Chart.yaml
                 sed -i "s/^appVersion: .*/appVersion: \"${'$'}DOCKER_TAG\"/" charts/Chart.yaml
                 
-                # Construir las dependencias del chart antes de empaquetar
-                echo "Building chart dependencies..."
-                helm dependency build charts/
-                
                 # Usar helm package para crear un paquete válido
+                # Los subcharts en charts/frontend y charts/backend se incluirán automáticamente
                 helm package charts/ --version ${'$'}HELM_VERSION --app-version ${'$'}DOCKER_TAG
                 
                 # Renombrar para que Octopus lo reconozca (mantener el nombre original con DOCKER_TAG)
