@@ -116,18 +116,12 @@ object Tunefy : BuildType({
                 sed -i "s/^version: .*/version: ${'$'}DOCKER_TAG/" charts/Chart.yaml
                 sed -i "s/^appVersion: .*/appVersion: \"${'$'}DOCKER_TAG\"/" charts/Chart.yaml
                 
-                # Crear directorio temporal para el paquete
-                PACKAGE_DIR="/tmp/charts-package-${'$'}DOCKER_TAG"
-                rm -rf "${'$'}PACKAGE_DIR"
-                mkdir -p "${'$'}PACKAGE_DIR"
+                # Usar helm package para crear un paquete válido
+                # Esto creará charts-VERSION.tgz con la estructura correcta
+                helm package charts/ --version ${'$'}DOCKER_TAG --app-version ${'$'}DOCKER_TAG
                 
-                # Copiar SOLO el directorio charts (que ahora tiene Chart.yaml raíz con name: charts)
-                cp -r charts "${'$'}PACKAGE_DIR/"
-                
-                # Crear el archivo tar.gz
-                # Octopus leerá charts/Chart.yaml y usará name: charts como packageId
-                cd "${'$'}PACKAGE_DIR"
-                tar -czf "charts.${'$'}DOCKER_TAG.tar.gz" charts/
+                # Renombrar para que Octopus lo reconozca con el packageId correcto
+                mv charts-${'$'}DOCKER_TAG.tgz charts.${'$'}DOCKER_TAG.tar.gz
                 
                 # Subir a Octopus usando el API
                 echo "Uploading package: charts.${'$'}DOCKER_TAG.tar.gz with nuspec metadata"
