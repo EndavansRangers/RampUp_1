@@ -21,12 +21,7 @@ resource "aws_launch_template" "cp" {
 
   vpc_security_group_ids = [aws_security_group.cp.id]
 
-  user_data = base64encode(<<EOF
-#cloud-config
-preserve_hostname: false
-hostname: ${local.name}-cp
-EOF
-  )
+  user_data = base64encode(templatefile("${path.module}/user-data-cp.sh", {}))
 
   tag_specifications {
     resource_type = "instance"
@@ -97,12 +92,7 @@ resource "aws_launch_template" "wk" {
 
   vpc_security_group_ids = [aws_security_group.wk.id]
 
-  user_data = base64encode(<<EOF
-#cloud-config
-preserve_hostname: false
-hostname: ${local.name}-wk
-EOF
-  )
+  user_data = base64encode(templatefile("${path.module}/user-data-wk.sh", {}))
 
   tag_specifications {
     resource_type = "instance"
