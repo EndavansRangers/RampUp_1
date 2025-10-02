@@ -35,8 +35,8 @@ object Tunefy : BuildType({
     name = "Tunefy"
 
     params {
-        param("env.DOCKER_REGISTRY", "365074502389.dkr.ecr.us-east-1.amazonaws.com")
         param("env.COLOR_NEXT", "blue")
+        param("env.DOCKER_REGISTRY", "365074502389.dkr.ecr.us-east-1.amazonaws.com")
         param("env.AWS_DEFAULT_REGION", "us-east-1")
         password("env.OCTO_API_KEY", "credentialsJSON:223c7874-6618-4f07-b353-809e4ca77e0e")
         param("env.OCTO_URL", "http://10.20.61.147:8080")
