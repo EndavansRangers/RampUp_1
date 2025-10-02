@@ -92,10 +92,9 @@ grafana:
       alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
       alb.ingress.kubernetes.io/healthcheck-path: /api/health
     hosts:
-      - host: ""  # Sin restricción para acceso directo con ALB DNS
-        paths:
-          - path: /
-            pathType: Prefix
+      - ""  # Sin restricción para acceso directo con ALB DNS
+    path: /
+    pathType: Prefix
 
 # --- Alertas custom para Tunefy ---
 additionalPrometheusRulesMap:
