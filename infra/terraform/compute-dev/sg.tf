@@ -149,13 +149,15 @@ resource "aws_security_group" "cicd" {
     to_port         = 8080
     protocol        = "tcp"
     security_groups = [aws_security_group.bastion.id, aws_security_group.cp.id]
-  } # Octopus UI (from bastion and CP)
+    self            = true
+  } # Octopus UI (from bastion, CP, and other CICD instances)
   ingress {
     from_port       = 10943
     to_port         = 10943
     protocol        = "tcp"
     security_groups = [aws_security_group.bastion.id, aws_security_group.cp.id]
-  } # Octopus Tentacle Polling (from bastion and CP)
+    self            = true
+  } # Octopus Tentacle Polling (from bastion, CP, and other CICD instances)
 
   egress {
     from_port   = 0
