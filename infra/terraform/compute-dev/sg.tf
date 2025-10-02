@@ -85,6 +85,14 @@ resource "aws_security_group" "cp" {
     security_groups = [aws_security_group.wk.id]
   }
 
+  # Octopus Tentacle (Octopus->CP communication)
+  ingress {
+    from_port       = 10933
+    to_port         = 10933
+    protocol        = "tcp"
+    security_groups = [aws_security_group.cicd.id]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
