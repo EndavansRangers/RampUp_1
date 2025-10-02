@@ -59,7 +59,7 @@ sudo apt-mark hold kubelet kubeadm kubectl
 echo "[6/8] Initializing Kubernetes..."
 PRIVATE_IP=$(hostname -I | awk '{print $1}')
 sudo kubeadm init \
-  --apiserver-advertise-address=${PRIVATE_IP} \
+  --apiserver-advertise-address=$PRIVATE_IP \
   --pod-network-cidr=192.168.0.0/16 \
   --service-cidr=10.96.0.0/12 \
   --kubernetes-version=1.29.0
