@@ -77,6 +77,14 @@ resource "aws_security_group" "cp" {
     self      = true
   }
 
+  # Calico Typha (Worker->CP communication)
+  ingress {
+    from_port       = 5473
+    to_port         = 5473
+    protocol        = "tcp"
+    security_groups = [aws_security_group.wk.id]
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
