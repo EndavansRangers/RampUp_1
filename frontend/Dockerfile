@@ -34,8 +34,8 @@ RUN echo 'server {' > /etc/nginx/conf.d/default.conf && \
     echo '  listen 80;' >> /etc/nginx/conf.d/default.conf && \
     echo '  server_name _;' >> /etc/nginx/conf.d/default.conf && \
     echo '  root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf && \
-    echo '  # Proxy API requests to backend service' >> /etc/nginx/conf.d/default.conf && \
-    echo '  location /api/ {' >> /etc/nginx/conf.d/default.conf && \
+    echo '  # Proxy API requests to backend service (priority with ^~ prefix)' >> /etc/nginx/conf.d/default.conf && \
+    echo '  location ^~ /api/ {' >> /etc/nginx/conf.d/default.conf && \
     echo '    proxy_pass http://backend.tunefy-dev.svc.cluster.local:3001/;' >> /etc/nginx/conf.d/default.conf && \
     echo '    proxy_http_version 1.1;' >> /etc/nginx/conf.d/default.conf && \
     echo '    proxy_set_header Host $host;' >> /etc/nginx/conf.d/default.conf && \
