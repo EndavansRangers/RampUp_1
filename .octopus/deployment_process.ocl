@@ -58,7 +58,7 @@ step "setup-kubeconfig" {
 step "upsert-ecr-credentials" {
     name = "Upsert ECR Credentials"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployer"
+        Octopus.Action.TargetRoles = "k8s-deployment"
     }
 
     action {
@@ -104,7 +104,7 @@ step "upsert-ecr-credentials" {
 step "setup-storage" {
     name = "Setup Storage Class"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployer"
+        Octopus.Action.TargetRoles = "k8s-deployment"
     }
 
     action {
@@ -134,7 +134,7 @@ step "setup-storage" {
 step "deploy-postgresql" {
     name = "Deploy PostgreSQL"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployer"
+        Octopus.Action.TargetRoles = "k8s-deployment"
     }
 
     action {
@@ -166,7 +166,7 @@ step "deploy-postgresql" {
 step "deploy-helm-frontend" {
     name = "Deploy Helm (Frontend)"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployer"
+        Octopus.Action.TargetRoles = "k8s-deployment"
     }
 
     action {
@@ -198,7 +198,7 @@ step "deploy-helm-frontend" {
 step "deploy-helm-backend-colornext" {
     name = "Deploy Helm (Backend ColorNext)"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployer"
+        Octopus.Action.TargetRoles = "k8s-deployment"
     }
 
     action {
@@ -230,7 +230,7 @@ step "deploy-helm-backend-colornext" {
 step "smoke-test" {
     name = "Smoke test"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployer"
+        Octopus.Action.TargetRoles = "k8s-deployment"
     }
 
     action {
@@ -309,7 +309,7 @@ step "update-colorlive" {
 step "deploy-monitoring" {
     name = "Deploy Monitoring Stack"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployer"
+        Octopus.Action.TargetRoles = "k8s-deployment"
     }
 
     action {
