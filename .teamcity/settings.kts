@@ -112,16 +112,20 @@ object Tunefy : BuildType({
             scriptContent = """
                 echo "Packaging Helm charts for Octopus..."
                 
-                # Actualizar la versión en el Chart.yaml raíz para que coincida con DOCKER_TAG
-                sed -i "s/^version: .*/version: ${'$'}DOCKER_TAG/" charts/Chart.yaml
+                # Convertir DOCKER_TAG a formato SemVer compatible con Helm
+                # De: 1.0.0.317-7c4c25d  A: 1.0.0+317-7c4c25d (usando + para metadata)
+                HELM_VERSION=${'$'}(echo ${'$'}DOCKER_TAG | sed 's/\.\([0-9]*-[a-f0-9]*\)$/+\1/')
+                echo "Helm version: ${'$'}HELM_VERSION"
+                
+                # Actualizar la versión en el Chart.yaml raíz
+                sed -i "s/^version: .*/version: ${'$'}HELM_VERSION/" charts/Chart.yaml
                 sed -i "s/^appVersion: .*/appVersion: \"${'$'}DOCKER_TAG\"/" charts/Chart.yaml
                 
                 # Usar helm package para crear un paquete válido
-                # Esto creará charts-VERSION.tgz con la estructura correcta
-                helm package charts/ --version ${'$'}DOCKER_TAG --app-version ${'$'}DOCKER_TAG
+                helm package charts/ --version ${'$'}HELM_VERSION --app-version ${'$'}DOCKER_TAG
                 
-                # Renombrar para que Octopus lo reconozca con el packageId correcto
-                mv charts-${'$'}DOCKER_TAG.tgz charts.${'$'}DOCKER_TAG.tar.gz
+                # Renombrar para que Octopus lo reconozca (mantener el nombre original con DOCKER_TAG)
+                mv charts-${'$'}HELM_VERSION.tgz charts.${'$'}DOCKER_TAG.tar.gz
                 
                 # Subir a Octopus usando el API
                 echo "Uploading package: charts.${'$'}DOCKER_TAG.tar.gz with nuspec metadata"
