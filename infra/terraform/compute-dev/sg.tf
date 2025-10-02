@@ -108,6 +108,14 @@ resource "aws_security_group" "wk" {
     security_groups = [aws_security_group.cp.id]
   }
 
+  # All traffic between workers (for Calico pod network)
+  ingress {
+    from_port = 0
+    to_port   = 0
+    protocol  = "-1"
+    self      = true
+  }
+
   # NodePort 
   ingress {
     from_port = 30000
