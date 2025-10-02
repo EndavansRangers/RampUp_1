@@ -315,7 +315,7 @@ step "deploy-monitoring" {
         is_required = false
         properties = {
             Octopus.Action.RunOnServer = "false"
-            Octopus.Action.Script.ScriptBody = "cd charts && chmod +x deploy-monitoring.sh && bash deploy-monitoring.sh"
+            Octopus.Action.Script.ScriptBody = "cd charts/monitoring && chmod +x deploy-monitoring.sh && bash deploy-monitoring.sh"
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
