@@ -320,23 +320,22 @@ step "deploy-monitoring" {
                 set -e
                 
                 echo "Current directory: $(pwd)"
-                echo "Directory contents:"
-                ls -la
+                echo "Searching for monitoring directory..."
                 
-                # Navigate to monitoring directory
-                if [ -d "monitoring" ]; then
-                    cd monitoring
-                elif [ -d "charts/monitoring" ]; then
-                    cd charts/monitoring
-                else
+                # Find the monitoring directory wherever it is
+                MONITORING_DIR=$(find . -type d -name "monitoring" | head -n 1)
+                
+                if [ -z "$MONITORING_DIR" ]; then
                     echo "ERROR: Cannot find monitoring directory"
-                    echo "Available directories:"
-                    find . -type d -name "monitoring"
+                    echo "Directory structure:"
+                    ls -laR
                     exit 1
                 fi
                 
-                echo "Now in: $(pwd)"
-                echo "Contents:"
+                echo "Found monitoring at: $MONITORING_DIR"
+                cd "$MONITORING_DIR"
+                
+                echo "Contents of monitoring directory:"
                 ls -la
                 
                 # Make script executable and run
@@ -344,7 +343,7 @@ step "deploy-monitoring" {
                     chmod +x deploy-monitoring.sh
                     bash deploy-monitoring.sh
                 else
-                    echo "ERROR: deploy-monitoring.sh not found"
+                    echo "ERROR: deploy-monitoring.sh not found in $(pwd)"
                     exit 1
                 fi
                 EOT
