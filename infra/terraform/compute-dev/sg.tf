@@ -85,6 +85,22 @@ resource "aws_security_group" "cp" {
     security_groups = [aws_security_group.wk.id]
   }
 
+  # Calico VXLAN overlay (Worker->CP)
+  ingress {
+    from_port       = 4789
+    to_port         = 4789
+    protocol        = "udp"
+    security_groups = [aws_security_group.wk.id]
+  }
+
+  # ICMP for debugging (Worker->CP)
+  ingress {
+    from_port       = -1
+    to_port         = -1
+    protocol        = "icmp"
+    security_groups = [aws_security_group.wk.id]
+  }
+
   # Octopus Tentacle (Octopus->CP communication)
   ingress {
     from_port       = 10933
@@ -121,6 +137,22 @@ resource "aws_security_group" "wk" {
     from_port       = 10250
     to_port         = 10250
     protocol        = "tcp"
+    security_groups = [aws_security_group.cp.id]
+  }
+
+  # Calico VXLAN overlay (CP->Worker)
+  ingress {
+    from_port       = 4789
+    to_port         = 4789
+    protocol        = "udp"
+    security_groups = [aws_security_group.cp.id]
+  }
+
+  # ICMP for debugging (CP->Worker)
+  ingress {
+    from_port       = -1
+    to_port         = -1
+    protocol        = "icmp"
     security_groups = [aws_security_group.cp.id]
   }
 
