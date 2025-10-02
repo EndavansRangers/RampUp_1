@@ -72,8 +72,18 @@ grafana:
     limits:
       memory: 256Mi
   
-  # El datasource de Prometheus ya viene configurado por defecto en kube-prometheus-stack
-  # No necesitamos definir datasources explícitamente
+  # Fix chart bug: Alertmanager datasource also has isDefault=true by default
+  # We override it here to ensure only Prometheus is default
+  additionalDataSources:
+  - name: "Alertmanager"
+    type: alertmanager
+    uid: alertmanager
+    url: http://mon-kube-prometheus-stack-alertmanager.monitoring:9093/
+    access: proxy
+    isDefault: false  # CRITICAL: Only Prometheus should be default
+    jsonData:
+      handleGrafanaManagedAlerts: false
+      implementation: prometheus
   
   ingress:
     enabled: true
