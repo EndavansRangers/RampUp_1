@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS merged_songs (
     artist_name VARCHAR(500) NOT NULL,
     popularity INTEGER DEFAULT 0,
     votes INTEGER DEFAULT 0,
+    session_id VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -34,6 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_merged_songs_user_id ON merged_songs(user_id);
 CREATE INDEX IF NOT EXISTS idx_merged_songs_popularity ON merged_songs(popularity);
 CREATE INDEX IF NOT EXISTS idx_merged_songs_votes ON merged_songs(votes);
 CREATE INDEX IF NOT EXISTS idx_merged_songs_song_name ON merged_songs(song_name);
+CREATE INDEX IF NOT EXISTS idx_merged_songs_session_id ON merged_songs(session_id);
 CREATE INDEX IF NOT EXISTS idx_top_songs_user_id ON top_songs(user_id);
 CREATE INDEX IF NOT EXISTS idx_top_songs_popularity ON top_songs(popularity);
 
@@ -53,17 +55,17 @@ CREATE TRIGGER update_merged_songs_updated_at
     EXECUTE FUNCTION update_updated_at_column();
 
 -- Insertar algunos datos de ejemplo (opcional)
-INSERT INTO merged_songs (user_id, song_name, artist_name, popularity, votes) VALUES
-('user1', 'Bohemian Rhapsody', 'Queen', 95, 10),
-('user1', 'Hotel California', 'Eagles', 90, 8),
-('user2', 'Imagine', 'John Lennon', 92, 12),
-('user2', 'Sweet Child O'' Mine', 'Guns N'' Roses', 88, 7),
-('user3', 'Billie Jean', 'Michael Jackson', 94, 15),
-('user3', 'Smells Like Teen Spirit', 'Nirvana', 87, 9),
-('user1', 'Stairway to Heaven', 'Led Zeppelin', 96, 11),
-('user2', 'Like a Rolling Stone', 'Bob Dylan', 85, 6),
-('user3', 'Purple Haze', 'Jimi Hendrix', 89, 8),
-('user1', 'Good Vibrations', 'The Beach Boys', 83, 5)
+INSERT INTO merged_songs (user_id, song_name, artist_name, popularity, votes, session_id) VALUES
+('user1', 'Bohemian Rhapsody', 'Queen', 95, 10, 'demo-session'),
+('user1', 'Hotel California', 'Eagles', 90, 8, 'demo-session'),
+('user2', 'Imagine', 'John Lennon', 92, 12, 'demo-session'),
+('user2', 'Sweet Child O'' Mine', 'Guns N'' Roses', 88, 7, 'demo-session'),
+('user3', 'Billie Jean', 'Michael Jackson', 94, 15, 'demo-session'),
+('user3', 'Smells Like Teen Spirit', 'Nirvana', 87, 9, 'demo-session'),
+('user1', 'Stairway to Heaven', 'Led Zeppelin', 96, 11, 'demo-session'),
+('user2', 'Like a Rolling Stone', 'Bob Dylan', 85, 6, 'demo-session'),
+('user3', 'Purple Haze', 'Jimi Hendrix', 89, 8, 'demo-session'),
+('user1', 'Good Vibrations', 'The Beach Boys', 83, 5, 'demo-session')
 ON CONFLICT DO NOTHING;
 
 -- Comentarios sobre el esquema:

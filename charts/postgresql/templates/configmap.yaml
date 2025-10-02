@@ -14,6 +14,7 @@ data:
         artist_name VARCHAR(500) NOT NULL,
         popularity INTEGER DEFAULT 0,
         votes INTEGER DEFAULT 0,
+        session_id VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -33,6 +34,7 @@ data:
     CREATE INDEX IF NOT EXISTS idx_merged_songs_popularity ON merged_songs(popularity);
     CREATE INDEX IF NOT EXISTS idx_merged_songs_votes ON merged_songs(votes);
     CREATE INDEX IF NOT EXISTS idx_merged_songs_song_name ON merged_songs(song_name);
+    CREATE INDEX IF NOT EXISTS idx_merged_songs_session_id ON merged_songs(session_id);
     CREATE INDEX IF NOT EXISTS idx_top_songs_user_id ON top_songs(user_id);
     CREATE INDEX IF NOT EXISTS idx_top_songs_popularity ON top_songs(popularity);
 
@@ -52,8 +54,8 @@ data:
         EXECUTE FUNCTION update_updated_at_column();
 
     -- Insertar datos de prueba (opcional)
-    INSERT INTO merged_songs (user_id, song_name, artist_name, popularity, votes)
+    INSERT INTO merged_songs (user_id, song_name, artist_name, popularity, votes, session_id)
     VALUES 
-        ('user1', 'Test Song 1', 'Test Artist 1', 85, 10),
-        ('user1', 'Test Song 2', 'Test Artist 2', 90, 15)
+        ('user1', 'Test Song 1', 'Test Artist 1', 85, 10, 'demo-session'),
+        ('user1', 'Test Song 2', 'Test Artist 2', 90, 15, 'demo-session')
     ON CONFLICT DO NOTHING;
