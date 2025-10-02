@@ -41,6 +41,8 @@ livenessProbe:
     port: 80
   initialDelaySeconds: 30
   periodSeconds: 10
+  timeoutSeconds: 10
+  failureThreshold: 3
 
 readinessProbe:
   httpGet:
@@ -48,3 +50,5 @@ readinessProbe:
     port: 80
   initialDelaySeconds: 10
   periodSeconds: 5
+  timeoutSeconds: 10
+  failureThreshold: 3
