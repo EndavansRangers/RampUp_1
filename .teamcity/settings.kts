@@ -83,7 +83,16 @@ object Tunefy : BuildType({
             id = "Build_Push_FRONTEND"
             scriptContent = """
                 FRONT="${'$'}DOCKER_REGISTRY/tunefy-frontend-dev:${'$'}DOCKER_TAG"
-                docker build -t "${'$'}FRONT" -f frontend/Dockerfile frontend
+                
+                # Backend URL apunta al mismo frontend ALB con prefijo /api
+                # El nginx del frontend hace proxy a backend service interno
+                # FRONTEND_URL se obtiene del ALB después del primer deploy, por ahora placeholder
+                docker build -t "${'$'}FRONT" \
+                  --build-arg REACT_APP_BACKEND_URL="/api" \
+                  --build-arg REACT_APP_FRONTEND_URL="" \
+                  --build-arg REACT_APP_GOOGLE_KEY="" \
+                  -f frontend/Dockerfile frontend
+                  
                 docker push "${'$'}FRONT"
             """.trimIndent()
         }

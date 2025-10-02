@@ -19,18 +19,7 @@ service:
     colorLive: "blue"  # Octopus cambia a "green" tras smoke test
 
 ingress:
-  enabled: true
-  className: alb
-  annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: instance
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
-    alb.ingress.kubernetes.io/healthcheck-path: /health
-  hosts:
-    - host: api.dev.tunefy.local  # Cambiar por tu dominio
-      paths:
-        - path: /api
-          pathType: Prefix
+  enabled: false  # Backend solo accesible vía Service interno (frontend nginx hace proxy)
 
 resources:
   limits:
