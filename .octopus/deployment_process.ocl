@@ -315,7 +315,39 @@ step "deploy-monitoring" {
         is_required = false
         properties = {
             Octopus.Action.RunOnServer = "false"
-            Octopus.Action.Script.ScriptBody = "cd charts/monitoring && chmod +x deploy-monitoring.sh && bash deploy-monitoring.sh"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -e
+                
+                echo "Current directory: $(pwd)"
+                echo "Directory contents:"
+                ls -la
+                
+                # Navigate to monitoring directory
+                if [ -d "monitoring" ]; then
+                    cd monitoring
+                elif [ -d "charts/monitoring" ]; then
+                    cd charts/monitoring
+                else
+                    echo "ERROR: Cannot find monitoring directory"
+                    echo "Available directories:"
+                    find . -type d -name "monitoring"
+                    exit 1
+                fi
+                
+                echo "Now in: $(pwd)"
+                echo "Contents:"
+                ls -la
+                
+                # Make script executable and run
+                if [ -f "deploy-monitoring.sh" ]; then
+                    chmod +x deploy-monitoring.sh
+                    bash deploy-monitoring.sh
+                else
+                    echo "ERROR: deploy-monitoring.sh not found"
+                    exit 1
+                fi
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
