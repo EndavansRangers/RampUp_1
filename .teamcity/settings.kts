@@ -114,7 +114,11 @@ object Tunefy : BuildType({
                 
                 # Convertir DOCKER_TAG a formato SemVer compatible con Helm
                 # De: 1.0.0.317-7c4c25d  A: 1.0.0+317-7c4c25d (usando + para metadata)
-                HELM_VERSION=${'$'}(echo ${'$'}DOCKER_TAG | sed 's/\.\([0-9]*-[a-f0-9]*\)$/+\1/')
+                # Extraer las partes: MAJOR.MINOR.PATCH y BUILD-COMMIT
+                VERSION_BASE=${'$'}(echo ${'$'}DOCKER_TAG | cut -d'.' -f1-3)
+                BUILD_META=${'$'}(echo ${'$'}DOCKER_TAG | cut -d'.' -f4)
+                HELM_VERSION="${'$'}VERSION_BASE+${'$'}BUILD_META"
+                echo "Docker Tag: ${'$'}DOCKER_TAG"
                 echo "Helm version: ${'$'}HELM_VERSION"
                 
                 # Actualizar la versión en el Chart.yaml raíz
