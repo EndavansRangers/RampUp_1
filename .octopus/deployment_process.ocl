@@ -47,7 +47,7 @@ step "setup-kubeconfig" {
                 # Test connection
                 kubectl version --client
                 kubectl get nodes
-                EOT
+                    EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
@@ -93,7 +93,7 @@ step "upsert-ecr-credentials" {
                   --dry-run=client -o yaml | kubectl apply -f -
                 
                 echo "✓ ECR credentials updated in namespace $NAMESPACE"
-                EOT
+                    EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
@@ -264,7 +264,7 @@ step "smoke-test" {
                 
                 # Set output variable for next step
                 set_octopusvariable "SmokeTestResult" "success"
-                EOT
+                    EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
@@ -296,7 +296,7 @@ step "update-colorlive" {
                 
                 echo "✓ ColorLive will be: #{ColorNext} in next deployment"
                 echo "Note: This is logged for tracking. Manual update in Octopus UI or use API."
-                EOT
+                    EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
         }
@@ -346,7 +346,7 @@ step "deploy-monitoring" {
                     echo "ERROR: deploy-monitoring.sh not found in $(pwd)"
                     exit 1
                 fi
-                EOT
+                    EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
