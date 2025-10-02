@@ -39,7 +39,7 @@ helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
   --create-namespace \
   --set image.tag="$IMAGE_TAG" \
   --values "$CHART_DIR/values-dev.yaml" \
-  --timeout 3m \
+  --timeout 10m \
   --wait \
   --atomic
 
