@@ -24,16 +24,31 @@ server.use(
 let pool; // será inicializado antes de server.listen()
 
 async function initDb() {
-  const { getDbSecret } = await import('./infra/awsSecret.js');
-  const s = await getDbSecret(); // { username, password, host, port, db }
-  pool = new Pool({
-    user: s.username,
-    host: s.host,
-    database: s.db,
-    password: s.password,
-    port: Number(s.port || 5432),
-    ssl: false
-  });
+  // Usar variables de entorno directamente para dev/k8s
+  // Si DB_HOST existe, usar env vars; si no, intentar AWS Secrets Manager
+  if (process.env.DB_HOST) {
+    console.log('Initializing database connection from environment variables...');
+    pool = new Pool({
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
+      port: Number(process.env.DB_PORT || 5432),
+      ssl: false
+    });
+  } else {
+    console.log('Initializing database connection from AWS Secrets Manager...');
+    const { getDbSecret } = await import('./infra/awsSecret.js');
+    const s = await getDbSecret(); // { username, password, host, port, db }
+    pool = new Pool({
+      user: s.username,
+      host: s.host,
+      database: s.db,
+      password: s.password,
+      port: Number(s.port || 5432),
+      ssl: false
+    });
+  }
 }
 
 // Health check endpoint
