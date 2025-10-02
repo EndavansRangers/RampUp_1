@@ -19,7 +19,7 @@ Desde el nodo control plane (cp1):
 
 ```bash
 # Ejecutar script de deployment
-bash charts/deploy-monitoring.sh
+bash charts/monitoring/deploy-monitoring.sh
 ```
 
 ### Opción 2: Via Octopus Deploy
