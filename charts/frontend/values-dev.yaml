@@ -22,7 +22,7 @@ ingress:
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}]'
     alb.ingress.kubernetes.io/healthcheck-path: /
   hosts:
-    - host: app.dev.tunefy.local  # Cambiar por tu dominio
+    - host: ""  # Sin restricción de host para acceso directo via ALB DNS
       paths:
         - path: /
           pathType: Prefix
