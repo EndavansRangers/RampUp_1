@@ -72,16 +72,8 @@ grafana:
     limits:
       memory: 256Mi
   
-  # Datasource automático para Prometheus
-  datasources:
-    datasources.yaml:
-      apiVersion: 1
-      datasources:
-        - name: Prometheus
-          type: prometheus
-          url: http://mon-kube-prometheus-stack-prometheus:9090
-          access: proxy
-          isDefault: true
+  # El datasource de Prometheus ya viene configurado por defecto en kube-prometheus-stack
+  # No necesitamos definir datasources explícitamente
   
   ingress:
     enabled: true
