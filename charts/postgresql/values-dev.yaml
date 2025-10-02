@@ -23,21 +23,21 @@ persistence:
   enabled: true
   storageClass: ""  # Use default storage class
   accessMode: ReadWriteOnce
-  size: 5Gi
+  size: 2Gi
 
 resources:
   limits:
-    cpu: 500m
-    memory: 512Mi
-  requests:
-    cpu: 100m
+    cpu: 300m
     memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 128Mi
 
 livenessProbe:
-  enabled: true
-  initialDelaySeconds: 30
+  initialDelaySeconds: 60
   periodSeconds: 10
   timeoutSeconds: 5
+  failureThreshold: 6
   exec:
     command:
       - /bin/sh
@@ -45,10 +45,10 @@ livenessProbe:
       - pg_isready -U tunefy -d tunefy
 
 readinessProbe:
-  enabled: true
-  initialDelaySeconds: 5
+  initialDelaySeconds: 10
   periodSeconds: 5
   timeoutSeconds: 3
+  failureThreshold: 3
   exec:
     command:
       - /bin/sh

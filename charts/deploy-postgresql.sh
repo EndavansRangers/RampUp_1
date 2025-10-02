@@ -34,7 +34,7 @@ helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
   --namespace "$NAMESPACE" \
   --create-namespace \
   --values "$CHART_DIR/values-dev.yaml" \
-  --timeout 5m \
+  --timeout 8m \
   --wait \
   --atomic
 
@@ -42,6 +42,6 @@ echo "✓ PostgreSQL deployed successfully"
 
 # Wait a bit for PostgreSQL to be fully ready
 echo "Waiting for PostgreSQL to be fully ready..."
-kubectl wait --for=condition=ready pod -l app=tunefy-postgresql -n "$NAMESPACE" --timeout=120s
+kubectl wait --for=condition=ready pod -l app=tunefy-postgresql -n "$NAMESPACE" --timeout=180s
 
 echo "✓ PostgreSQL is ready"
