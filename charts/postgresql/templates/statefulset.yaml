@@ -60,8 +60,14 @@ spec:
         {{- end }}
       volumes:
       - name: postgres-data
+        {{- if eq .Values.persistence.type "hostPath" }}
+        hostPath:
+          path: {{ .Values.persistence.hostPath }}
+          type: DirectoryOrCreate
+        {{- else }}
         persistentVolumeClaim:
           claimName: {{ .Chart.Name }}-pvc
+        {{- end }}
       - name: init-script
         configMap:
           name: {{ .Chart.Name }}-init
