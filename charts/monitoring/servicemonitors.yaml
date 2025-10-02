@@ -1,0 +1,89 @@
+# ServiceMonitors para recolectar métricas de los servicios de Tunefy
+# Prometheus automáticamente descubre estos recursos y empieza a scrapear
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tunefy-backend
+  namespace: tunefy-dev
+  labels:
+    app: tunefy-backend
+    release: mon  # Importante: debe coincidir con el release name de prometheus
+spec:
+  selector:
+    matchLabels:
+      app: backend  # Match con el label del Service backend
+  namespaceSelector:
+    matchNames:
+      - tunefy-dev
+  endpoints:
+    - port: http
+      path: /health
+      interval: 30s
+      scrapeTimeout: 10s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: tunefy-frontend
+  namespace: tunefy-dev
+  labels:
+    app: tunefy-frontend
+    release: mon
+spec:
+  selector:
+    matchLabels:
+      app: tunefy-frontend  # Match con el label del Service frontend
+  namespaceSelector:
+    matchNames:
+      - tunefy-dev
+  endpoints:
+    - port: http
+      interval: 30s
+      scrapeTimeout: 10s
+
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgresql
+  namespace: tunefy-dev
+  labels:
+    app: postgresql
+    release: mon
+spec:
+  selector:
+    matchLabels:
+      app: postgresql  # Match con el label del Service PostgreSQL
+  namespaceSelector:
+    matchNames:
+      - tunefy-dev
+  endpoints:
+    - port: postgresql
+      interval: 30s
+      scrapeTimeout: 10s
+
+---
+# PodMonitor alternativo para capturar métricas directamente de pods
+# Útil si los Services no exponen todas las métricas necesarias
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: tunefy-pods
+  namespace: tunefy-dev
+  labels:
+    app: tunefy
+    release: mon
+spec:
+  selector:
+    matchLabels: {}  # Monitorea todos los pods en el namespace
+  namespaceSelector:
+    matchNames:
+      - tunefy-dev
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

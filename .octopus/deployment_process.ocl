@@ -302,3 +302,33 @@ step "update-colorlive" {
         }
     }
 }
+
+step "deploy-monitoring" {
+    name = "Deploy Monitoring Stack"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = false
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "cd charts && chmod +x deploy-monitoring.sh && bash deploy-monitoring.sh"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+
+        packages "charts" {
+            acquisition_location = "ExecutionTarget"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
