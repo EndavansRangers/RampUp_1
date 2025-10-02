@@ -18,11 +18,11 @@ service:
   port: 5432
   targetPort: 5432
 
-# Persistence
+# Persistence - Using hostPath for dev (not for production!)
 persistence:
   enabled: true
-  storageClass: ""  # Use default storage class
-  accessMode: ReadWriteOnce
+  type: hostPath  # Use hostPath instead of PVC for dev
+  hostPath: /mnt/postgresql-data
   size: 2Gi
 
 resources:
