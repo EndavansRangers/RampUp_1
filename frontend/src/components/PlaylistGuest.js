@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { BACKEND_URL } from "../config";
 
 const Playlist = ({ onVote }) => {
   const [error, setError] = useState(null);
@@ -14,7 +15,7 @@ const Playlist = ({ onVote }) => {
       }
       
       const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/votes?sessionId=${sessionId}`
+        `${BACKEND_URL}/votes?sessionId=${sessionId}`
       );
       if (!response.ok) {
         throw new Error("Failed to fetch votes");
@@ -48,7 +49,7 @@ const Playlist = ({ onVote }) => {
       return;
     }
     
-    fetch(`${process.env.REACT_APP_BACKEND_URL}/playlist?sessionId=${sessionId}`)
+    fetch(`${BACKEND_URL}/playlist?sessionId=${sessionId}`)
       .then((response) => response.json())
       .then((data) => {
         setSongs(data);
