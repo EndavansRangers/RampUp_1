@@ -6,13 +6,14 @@ terraform {
       version = "~> 5.0"
     }
   }
-  backend "s3" {
-    bucket         = "tunefy-terraform-state-365074502389"
-    key            = "dns-records/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "tunefy-terraform-locks"
-    encrypt        = true
-  }
+  # Using local backend for now - migrate to S3 later
+  # backend "s3" {
+  #   bucket         = "tunefy-terraform-state-365074502389"
+  #   key            = "dns-records/terraform.tfstate"
+  #   region         = "us-east-1"
+  #   dynamodb_table = "tunefy-terraform-locks"
+  #   encrypt        = true
+  # }
 }
 
 provider "aws" {
