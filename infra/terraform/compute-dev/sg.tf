@@ -164,12 +164,12 @@ resource "aws_security_group" "wk" {
     self      = true
   }
 
-  # NodePort 
+  # NodePort range for Kubernetes services (from VPC for ALB access)
   ingress {
-    from_port = 30000
-    to_port   = 32767
-    protocol  = "tcp"
-    self      = true
+    from_port   = 30000
+    to_port     = 32767
+    protocol    = "tcp"
+    cidr_blocks = [local.vpc_cidr]
   }
 
   egress {
