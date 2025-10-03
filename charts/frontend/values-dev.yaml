@@ -29,6 +29,10 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
+    # Agregar regla para permitir acceso directo via ALB DNS
+    - paths:
+        - path: /
+          pathType: Prefix
 
 resources:
   limits:
