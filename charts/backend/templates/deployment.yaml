@@ -45,7 +45,7 @@ spec:
           protocol: TCP
         env:
         {{- if $.Values.env }}
-          {{- toYaml $.Values.env | nindent 10 }}
+        {{- toYaml $.Values.env | nindent 8 }}
         {{- end }}
         {{- if $.Values.secrets.enabled }}
         # Database credentials from Secrets Manager via CSI
