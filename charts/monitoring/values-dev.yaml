@@ -97,14 +97,8 @@ grafana:
       alb.ingress.kubernetes.io/ssl-redirect: "443"
       alb.ingress.kubernetes.io/healthcheck-path: /api/health
     hosts:
-      - host: "grafana.dev.tunefy.site"
-        paths:
-          - path: /
-            pathType: Prefix
-      # Allow access via Grafana ALB DNS directly
-      - paths:
-          - path: /
-            pathType: Prefix
+      - grafana.dev.tunefy.site
+    path: /
 
 # --- Alertas custom para Tunefy ---
 additionalPrometheusRulesMap:
