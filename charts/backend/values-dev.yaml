@@ -51,7 +51,7 @@ env:
   - name: PORT
     value: "3001"
   - name: DB_HOST
-    value: "tunefy-postgresql"
+    value: "postgresql"
   - name: DB_PORT
     value: "5432"
   - name: DB_NAME
