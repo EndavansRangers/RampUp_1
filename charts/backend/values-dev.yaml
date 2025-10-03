@@ -50,9 +50,18 @@ env:
     value: "development"
   - name: PORT
     value: "3001"
-  # DB credentials now come from Secrets Manager via CSI (see secrets section below)
+  - name: DB_HOST
+    value: "tunefy-postgresql"
+  - name: DB_PORT
+    value: "5432"
+  - name: DB_NAME
+    value: "tunefy"
+  - name: DB_USER
+    value: "tunefy_user"
+  - name: DB_PASSWORD
+    value: "tunefy_pass"
 
 secrets:
-  enabled: true
+  enabled: false
   secretName: backend-db
   providerClass: spc-backend-db
