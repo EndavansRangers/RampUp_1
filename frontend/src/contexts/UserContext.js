@@ -1,5 +1,6 @@
 import React, { createContext, useState } from "react";
 import axios from "axios";
+import { BACKEND_URL } from "../config";
 
 export const UserContext = createContext({
     users: [],
@@ -20,7 +21,7 @@ export const UserProvider = ({ children }) => {
             }
 
             const response = await axios.get(
-                `${process.env.REACT_APP_BACKEND_URL}/session-users`,
+                `${BACKEND_URL}/session-users`,
                 {
                     params: {
                         sessionId,
