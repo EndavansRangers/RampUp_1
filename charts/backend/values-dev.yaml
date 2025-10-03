@@ -57,9 +57,9 @@ env:
   - name: DB_NAME
     value: "tunefy"
   - name: DB_USER
-    value: "tunefy_user"
+    value: "tunefy"
   - name: DB_PASSWORD
-    value: "tunefy_pass"
+    value: "tunefy_dev_password"
 
 secrets:
   enabled: false
