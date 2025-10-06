@@ -1,0 +1,146 @@
+# Backend Production Configuration
+# Tunefy Backend API - Production Environment
+
+replicaCount: 2
+
+image:
+  repository: 365074502389.dkr.ecr.us-east-1.amazonaws.com/tunefy-backend
+  pullPolicy: IfNotPresent
+  tag: "" # Will be set by Octopus
+
+nameOverride: "tunefy-backend"
+fullnameOverride: "tunefy-backend"
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 3001
+  targetPort: 3001
+
+# Resource limits for t3.micro workers (1 vCPU / 1GB RAM)
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Node affinity - prefer backend workload nodes
+nodeSelector:
+  workload: app-backend
+
+# Allow scheduling on other nodes if backend node is full
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: workload
+              operator: In
+              values:
+                - app-backend
+
+# Pod disruption budget for HA
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3001
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3001
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Environment variables - will be populated from K8s Secret
+env:
+  - name: NODE_ENV
+    value: "production"
+  - name: PORT
+    value: "3001"
+  - name: DB_HOST
+    valueFrom:
+      secretKeyRef:
+        name: backend-db
+        key: host
+  - name: DB_PORT
+    valueFrom:
+      secretKeyRef:
+        name: backend-db
+        key: port
+  - name: DB_NAME
+    valueFrom:
+      secretKeyRef:
+        name: backend-db
+        key: dbname
+  - name: DB_USER
+    valueFrom:
+      secretKeyRef:
+        name: backend-db
+        key: username
+  - name: DB_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: backend-db
+        key: password
+  - name: SPOTIFY_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: spotify-credentials
+        key: client_id
+        optional: true
+  - name: SPOTIFY_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: spotify-credentials
+        key: client_secret
+        optional: true
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Service Account
+serviceAccount:
+  create: true
+  name: tunefy-backend
+
+# Security Context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+
+# Monitoring
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "3001"
+  prometheus.io/path: "/metrics"
+
+# Labels for NetworkPolicies
+podLabels:
+  app: tunefy-backend
+  tier: backend
+  environment: prod
