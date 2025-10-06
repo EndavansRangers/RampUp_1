@@ -1,0 +1,36 @@
+---
+# Tunefy Production Environment Variables
+
+project: tunefy
+env: prod
+
+# Kubernetes version
+kube_version: "1.30"
+containerd_version: "1.7.13"
+
+# Network configuration
+pod_cidr: "192.168.0.0/16"
+service_cidr: "10.96.0.0/12"
+
+# Control plane endpoint (NLB DNS from Terraform output)
+# Update this after Terraform apply
+control_plane_endpoint: "tunefy-prod-cp-nlb-XXXXXXXX.elb.us-east-1.amazonaws.com"
+
+# Cluster name
+cluster_name: "tunefy-prod"
+
+# Certificate validity
+cert_validity_days: 3650
+
+# Feature gates (optional)
+feature_gates: {}
+
+# API server extra args
+apiserver_extra_args:
+  audit-log-path: "/var/log/kubernetes/audit.log"
+  audit-log-maxage: "30"
+  audit-log-maxbackup: "10"
+  audit-log-maxsize: "100"
+
+# etcd backup S3 bucket (for cronjob)
+etcd_backup_bucket: "tunefy-etcd-backups-prod"
