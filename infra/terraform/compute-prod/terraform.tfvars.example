@@ -1,0 +1,45 @@
+# Example terraform.tfvars for Production environment
+# Copy this file to terraform.tfvars and fill with your values
+
+project = "tunefy"
+region  = "us-east-1"
+env     = "prod"
+
+# VPC and Subnets (from network module)
+vpc_id = "vpc-xxxxxxxxx"
+
+public_subnet_ids = [
+  "subnet-xxxxxxxxx", # us-east-1a
+  "subnet-yyyyyyyyy", # us-east-1b
+  "subnet-zzzzzzzzz"  # us-east-1c
+]
+
+private_subnet_ids = [
+  "subnet-aaaaaaaaa", # us-east-1a
+  "subnet-bbbbbbbbb", # us-east-1b
+  "subnet-ccccccccc"  # us-east-1c
+]
+
+# SSH Key
+key_name = "your-key-pair-name"
+
+# Security - Your public IP for SSH access
+allowed_ssh_cidr = "YOUR.PUBLIC.IP.HERE/32"
+
+# Kubernetes
+cluster_name = "tunefy-prod"
+
+# Instance Types (Free Tier optimized)
+cp_instance_type      = "t3.small"  # Control planes need more RAM for etcd
+wk_instance_type      = "t3.micro"  # Workers on Free Tier
+bastion_instance_type = "t3.micro"
+
+# IAM (from platform module)
+nodes_instance_profile_name = "tunefy-prod-nodes-instance-profile"
+
+# Additional tags
+tags = {
+  Team        = "DevOps"
+  CostCenter  = "Engineering"
+  Compliance  = "GDPR"
+}
