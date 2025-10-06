@@ -1,0 +1,59 @@
+---
+# Tasks for joining additional control plane nodes (cp2, cp3)
+
+- name: Check if this node is already a control plane
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: admin_conf
+
+- name: Wait for primary control plane to be ready
+  shell: |
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl get nodes {{ hostvars[groups['cp'][0]].inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  register: primary_cp_ready
+  until: primary_cp_ready.stdout == "True"
+  retries: 30
+  delay: 10
+  delegate_to: "{{ groups['cp'][0] }}"
+  when: not admin_conf.stat.exists
+
+- name: Join control plane cluster
+  command: "{{ hostvars[groups['cp'][0]].k8s_join_cmd_cp }}"
+  args:
+    creates: /etc/kubernetes/admin.conf
+  when: not admin_conf.stat.exists
+
+- name: Wait for kubelet to start
+  systemd:
+    name: kubelet
+    state: started
+    enabled: yes
+  when: not admin_conf.stat.exists
+
+- name: Wait for this control plane node to be Ready
+  shell: |
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl get nodes {{ inventory_hostname }} -o jsonpath='{.status.conditions[?(@.type=="Ready")].status}'
+  register: this_cp_ready
+  until: this_cp_ready.stdout == "True"
+  retries: 30
+  delay: 10
+  when: not admin_conf.stat.exists
+
+- name: Copy kubeconfig to home directory
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ ansible_env.HOME }}/.kube/config"
+    remote_src: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+
+- name: Display node status
+  command: kubectl get nodes
+  register: nodes_status
+  changed_when: false
+
+- name: Show cluster nodes
+  debug:
+    msg: "{{ nodes_status.stdout_lines }}"
