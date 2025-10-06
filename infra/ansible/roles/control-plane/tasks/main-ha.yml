@@ -1,0 +1,140 @@
+---
+# Main tasks for control plane setup
+# Handles both primary (init) and secondary (join) control planes
+
+- name: Check if this is the primary control plane
+  set_fact:
+    is_primary: "{{ inventory_hostname == groups['cp'][0] }}"
+
+- name: Check if admin.conf exists (cluster already initialized)
+  stat:
+    path: /etc/kubernetes/admin.conf
+  register: admin_conf
+
+# ============================================
+# PRIMARY CONTROL PLANE (cp1) - INIT
+# ============================================
+- name: PRIMARY CP - Initialize cluster
+  block:
+    - name: Ensure kubeadm config directory
+      file:
+        path: /etc/kubernetes/kubeadm
+        state: directory
+        mode: "0755"
+
+    - name: Generate kubeadm config
+      template:
+        src: kubeadm-config.yaml.j2
+        dest: /etc/kubernetes/kubeadm/config.yaml
+        mode: "0644"
+
+    - name: kubeadm init (skip wait-control-plane)
+      command: kubeadm init --config /etc/kubernetes/kubeadm/config.yaml --skip-phases=wait-control-plane
+      args:
+        creates: /etc/kubernetes/admin.conf
+
+    - name: Ensure /root/.kube exists
+      file:
+        path: /root/.kube
+        state: directory
+        mode: "0700"
+
+    - name: Copy admin.conf to root kubeconfig
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: /root/.kube/config
+        remote_src: true
+        mode: "0600"
+
+    - name: Copy kubeconfig to ansible user
+      copy:
+        src: /etc/kubernetes/admin.conf
+        dest: "{{ ansible_env.HOME }}/.kube/config"
+        remote_src: yes
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0600'
+
+    - name: Ensure .kube directory exists for ansible user
+      file:
+        path: "{{ ansible_env.HOME }}/.kube"
+        state: directory
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+        mode: '0755'
+
+    - name: Wait for API server on localhost
+      uri:
+        url: https://127.0.0.1:6443/healthz
+        method: GET
+        status_code: 200
+        validate_certs: no
+      register: api_local
+      retries: 90
+      delay: 4
+      until: api_local.status == 200
+
+    - name: Wait for control plane pods to be ready
+      shell: |
+        export KUBECONFIG=/etc/kubernetes/admin.conf
+        kubectl get pods -n kube-system -l tier=control-plane -o json | \
+        jq -r '.items[] | select(.status.phase=="Running") | .metadata.name' | wc -l
+      register: cp_pods_count
+      until: cp_pods_count.stdout | int >= 3
+      retries: 30
+      delay: 10
+
+    - name: Include HA setup tasks
+      include_tasks: ha-setup.yml
+
+  when: 
+    - is_primary | bool
+    - not admin_conf.stat.exists
+
+# ============================================
+# SECONDARY CONTROL PLANES (cp2, cp3) - JOIN
+# ============================================
+- name: SECONDARY CP - Join cluster
+  include_tasks: join.yml
+  when:
+    - not is_primary | bool
+    - not admin_conf.stat.exists
+
+# ============================================
+# POST-SETUP (all control planes)
+# ============================================
+- name: Ensure kubeconfig is set for all control planes
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ ansible_env.HOME }}/.kube/config"
+    remote_src: yes
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0600'
+  when: admin_conf.stat.exists
+
+- name: Label control plane nodes
+  shell: |
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl label node {{ inventory_hostname }} node-role.kubernetes.io/control-plane='' --overwrite
+  ignore_errors: yes
+  delegate_to: "{{ groups['cp'][0] }}"
+
+- name: Taint control plane nodes (NoSchedule)
+  shell: |
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl taint node {{ inventory_hostname }} node-role.kubernetes.io/control-plane=:NoSchedule --overwrite
+  ignore_errors: yes
+  delegate_to: "{{ groups['cp'][0] }}"
+
+- name: Display cluster info
+  command: kubectl cluster-info
+  register: cluster_info
+  changed_when: false
+  delegate_to: "{{ groups['cp'][0] }}"
+  run_once: true
+
+- name: Show cluster info
+  debug:
+    msg: "{{ cluster_info.stdout_lines }}"
+  run_once: true
