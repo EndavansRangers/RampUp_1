@@ -1,0 +1,148 @@
+# Frontend Production Configuration
+# Tunefy React Frontend - Production Environment
+
+replicaCount: 2
+
+image:
+  repository: 365074502389.dkr.ecr.us-east-1.amazonaws.com/tunefy-frontend
+  pullPolicy: IfNotPresent
+  tag: "" # Will be set by Octopus
+
+nameOverride: "tunefy-frontend"
+fullnameOverride: "tunefy-frontend"
+
+# Service configuration
+service:
+  type: NodePort
+  port: 80
+  targetPort: 80
+
+# Ingress configuration with HTTPS
+ingress:
+  enabled: true
+  className: alb
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+    alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: "2"
+    
+    # HTTPS/SSL Configuration
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:365074502389:certificate/PROD_CERT_ARN" # Update with prod cert
+    alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    
+    # Tags
+    alb.ingress.kubernetes.io/tags: "Environment=prod,Project=tunefy,ManagedBy=kubernetes"
+  
+  hosts:
+    - host: "app.prod.tunefy.site"
+      paths:
+        - path: /
+          pathType: Prefix
+  
+  tls:
+    - hosts:
+        - "app.prod.tunefy.site"
+
+# Resource limits for t3.micro workers
+resources:
+  requests:
+    memory: "128Mi"
+    cpu: "50m"
+  limits:
+    memory: "256Mi"
+    cpu: "200m"
+
+# Node affinity - prefer frontend workload nodes
+nodeSelector:
+  workload: app-frontend
+
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: workload
+              operator: In
+              values:
+                - app-frontend
+  # Spread pods across nodes
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app
+                operator: In
+                values:
+                  - tunefy-frontend
+          topologyKey: kubernetes.io/hostname
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Health checks
+livenessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Environment variables
+env:
+  - name: NODE_ENV
+    value: "production"
+  - name: REACT_APP_BACKEND_URL
+    value: "/api"  # Use nginx proxy
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 4
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Service Account
+serviceAccount:
+  create: true
+  name: tunefy-frontend
+
+# Security Context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 101  # nginx user
+  fsGroup: 101
+  capabilities:
+    drop:
+      - ALL
+    add:
+      - NET_BIND_SERVICE
+  readOnlyRootFilesystem: false
+
+# Labels for NetworkPolicies
+podLabels:
+  app: tunefy-frontend
+  tier: frontend
+  environment: prod
