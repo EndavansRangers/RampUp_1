@@ -48,7 +48,7 @@ resource "aws_iam_instance_profile" "octopus" {
 # TeamCity in private subnet
 resource "aws_instance" "teamcity" {
   ami                         = data.aws_ami.ubuntu.id
-  instance_type               = var.tc_instance_type
+  instance_type               = var.tc_instance_type  # c7i-flex.large
   subnet_id                   = local.private_subnet_ids[0]
   associate_public_ip_address = false
   key_name                    = var.key_name
@@ -57,19 +57,32 @@ resource "aws_instance" "teamcity" {
   
   root_block_device {
     volume_type = "gp3"
-    volume_size = 40
+    volume_size = 50  # Aumentado para builds y cache
     encrypted   = true
     tags        = merge(local.common_tags, { Name = "${local.name}-teamcity-root" })
   }
+
+  user_data = templatefile("${path.module}/user-data-teamcity.sh", {
+    project = var.project
+    env     = var.env
+    region  = var.region
+  })
   
-  tags                        = merge(local.common_tags, { Name = "${local.name}-teamcity" })
+  tags = merge(local.common_tags, { 
+    Name = "${local.name}-teamcity"
+    Role = "ci"
+  })
+
+  lifecycle {
+    ignore_changes = [ami, user_data]
+  }
 }
 
 # Octopus in private subnet
 resource "aws_instance" "octopus" {
   ami                         = data.aws_ami.ubuntu.id
-  instance_type               = var.oc_instance_type
-  subnet_id                   = local.private_subnet_ids[0]
+  instance_type               = var.oc_instance_type  # c7i-flex.large
+  subnet_id                   = local.private_subnet_ids[1]  # Subnet diferente
   associate_public_ip_address = false
   key_name                    = var.key_name
   iam_instance_profile        = aws_iam_instance_profile.octopus.name
@@ -77,11 +90,24 @@ resource "aws_instance" "octopus" {
   
   root_block_device {
     volume_type = "gp3"
-    volume_size = 40
+    volume_size = 50  # Aumentado para Octopus + SQL Server
     encrypted   = true
     tags        = merge(local.common_tags, { Name = "${local.name}-octopus-root" })
   }
+
+  user_data = templatefile("${path.module}/user-data-octopus.sh", {
+    project = var.project
+    env     = var.env
+    region  = var.region
+  })
   
-  tags                        = merge(local.common_tags, { Name = "${local.name}-octopus" })
+  tags = merge(local.common_tags, { 
+    Name = "${local.name}-octopus"
+    Role = "cd"
+  })
+
+  lifecycle {
+    ignore_changes = [ami, user_data]
+  }
 }
 

@@ -7,7 +7,7 @@ terraform {
     }
   }
   backend "s3" {
-    bucket       = "tunefy-tf-state"
+    bucket       = "tunefy-tf-state-638325785916"
     key          = "network/terraform.tfstate"
     region       = "us-east-1"
     use_lockfile = true

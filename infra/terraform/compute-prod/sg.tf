@@ -32,18 +32,20 @@ resource "aws_security_group" "nlb" {
   description = "Security group for NLB to control plane"
   vpc_id      = var.vpc_id
 
-  # Allow health checks to control planes
-  egress {
-    from_port       = 6443
-    to_port         = 6443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.cp.id]
-    description     = "Health check to API server"
-  }
-
   tags = merge(local.common_tags, {
     Name = "${local.name}-nlb-sg"
   })
+}
+
+# NLB egress to CP (separate rule to avoid cycle)
+resource "aws_security_group_rule" "nlb_to_cp" {
+  type                     = "egress"
+  from_port                = 6443
+  to_port                  = 6443
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.cp.id
+  security_group_id        = aws_security_group.nlb.id
+  description              = "Health check to API server"
 }
 
 # Security Group for Control Plane nodes
@@ -79,15 +81,6 @@ resource "aws_security_group" "cp" {
     description = "API server between control planes"
   }
 
-  # API Server from workers (for kubectl, metrics)
-  ingress {
-    from_port       = 6443
-    to_port         = 6443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.wk.id]
-    description     = "API server from workers"
-  }
-
   # etcd cluster (2379-2380)
   ingress {
     from_port   = 2379
@@ -104,15 +97,6 @@ resource "aws_security_group" "cp" {
     protocol    = "tcp"
     self        = true
     description = "Kubelet API between CPs"
-  }
-
-  # Kubelet API from workers (for metrics)
-  ingress {
-    from_port       = 10250
-    to_port         = 10250
-    protocol        = "tcp"
-    security_groups = [aws_security_group.wk.id]
-    description     = "Kubelet API from workers"
   }
 
   # Controller Manager
@@ -150,13 +134,6 @@ resource "aws_security_group" "cp" {
     self        = true
     description = "Calico VXLAN"
   }
-  ingress {
-    from_port       = 4789
-    to_port         = 4789
-    protocol        = "udp"
-    security_groups = [aws_security_group.wk.id]
-    description     = "Calico VXLAN from workers"
-  }
 
   egress {
     from_port   = 0
@@ -186,15 +163,6 @@ resource "aws_security_group" "wk" {
     description     = "SSH from bastion"
   }
 
-  # Kubelet API from control planes
-  ingress {
-    from_port       = 10250
-    to_port         = 10250
-    protocol        = "tcp"
-    security_groups = [aws_security_group.cp.id]
-    description     = "Kubelet API from CPs"
-  }
-
   # Kubelet API between workers
   ingress {
     from_port   = 10250
@@ -214,13 +182,6 @@ resource "aws_security_group" "wk" {
   }
 
   # Calico VXLAN
-  ingress {
-    from_port       = 4789
-    to_port         = 4789
-    protocol        = "udp"
-    security_groups = [aws_security_group.cp.id]
-    description     = "Calico VXLAN from CPs"
-  }
   ingress {
     from_port   = 4789
     to_port     = 4789
@@ -258,4 +219,61 @@ resource "aws_security_group" "wk" {
   tags = merge(local.common_tags, {
     Name = "${local.name}-wk-sg"
   })
+}
+
+# --- Separate rules to avoid circular dependencies ---
+
+# CP: Allow API server from workers
+resource "aws_security_group_rule" "cp_api_from_wk" {
+  type                     = "ingress"
+  from_port                = 6443
+  to_port                  = 6443
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.wk.id
+  security_group_id        = aws_security_group.cp.id
+  description              = "API server from workers"
+}
+
+# CP: Allow Kubelet API from workers
+resource "aws_security_group_rule" "cp_kubelet_from_wk" {
+  type                     = "ingress"
+  from_port                = 10250
+  to_port                  = 10250
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.wk.id
+  security_group_id        = aws_security_group.cp.id
+  description              = "Kubelet API from workers"
+}
+
+# CP: Allow VXLAN from workers
+resource "aws_security_group_rule" "cp_vxlan_from_wk" {
+  type                     = "ingress"
+  from_port                = 4789
+  to_port                  = 4789
+  protocol                 = "udp"
+  source_security_group_id = aws_security_group.wk.id
+  security_group_id        = aws_security_group.cp.id
+  description              = "Calico VXLAN from workers"
+}
+
+# WK: Allow Kubelet API from CPs
+resource "aws_security_group_rule" "wk_kubelet_from_cp" {
+  type                     = "ingress"
+  from_port                = 10250
+  to_port                  = 10250
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.cp.id
+  security_group_id        = aws_security_group.wk.id
+  description              = "Kubelet API from CPs"
+}
+
+# WK: Allow VXLAN from CPs
+resource "aws_security_group_rule" "wk_vxlan_from_cp" {
+  type                     = "ingress"
+  from_port                = 4789
+  to_port                  = 4789
+  protocol                 = "udp"
+  source_security_group_id = aws_security_group.cp.id
+  security_group_id        = aws_security_group.wk.id
+  description              = "Calico VXLAN from CPs"
 }

@@ -11,6 +11,12 @@ key_name  = "tunefy-dev-key"
 # DNodes:
 nodes_instance_profile_name = "tunefy-dev-nodes"
 
+# Instance types (c7i-flex.large for free tier first year)
+cp_instance_type = "c7i-flex.large"
+wk_instance_type = "t3.micro"
+tc_instance_type = "c7i-flex.large"
+oc_instance_type = "c7i-flex.large"
+
 # Tu IP
 allowed_ssh_cidr = "128.77.67.14/32"
 

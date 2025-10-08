@@ -4,7 +4,7 @@ terraform {
     aws = { source = "hashicorp/aws", version = "~> 5.60" }
   }
   backend "s3" {
-    bucket         = "tunefy-tf-state" # <- AJUSTA
+    bucket         = "tunefy-638325785916-tf-state"
     key            = "compute-dev/terraform.tfstate"
     region         = "us-east-1"
     dynamodb_table = "tunefy-tf-locks"

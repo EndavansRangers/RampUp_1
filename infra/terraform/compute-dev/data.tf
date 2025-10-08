@@ -19,19 +19,44 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-data "terraform_remote_state" "network" {
-  backend = "s3"
-  config = {
-    bucket = "tunefy-tf-state" # <- tu bucket
-    key    = "env:/${var.env}/network/terraform.tfstate"
-    region = var.region
+# Removed remote state dependency - using direct VPC lookup instead
+data "aws_vpc" "selected" {
+  filter {
+    name   = "tag:Project"
+    values = [var.project]
+  }
+  filter {
+    name   = "tag:Env"
+    values = [var.env]
+  }
+}
+
+data "aws_subnets" "public" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.selected.id]
+  }
+  filter {
+    name   = "map-public-ip-on-launch"
+    values = ["true"]
+  }
+}
+
+data "aws_subnets" "private" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.selected.id]
+  }
+  filter {
+    name   = "map-public-ip-on-launch"
+    values = ["false"]
   }
 }
 
 locals {
-  vpc_id             = data.terraform_remote_state.network.outputs.vpc_id
-  vpc_cidr           = data.terraform_remote_state.network.outputs.vpc_cidr
-  public_subnet_ids  = data.terraform_remote_state.network.outputs.public_subnet_ids
-  private_subnet_ids = data.terraform_remote_state.network.outputs.private_subnet_ids
+  vpc_id             = data.aws_vpc.selected.id
+  vpc_cidr           = data.aws_vpc.selected.cidr_block
+  public_subnet_ids  = data.aws_subnets.public.ids
+  private_subnet_ids = data.aws_subnets.private.ids
 }
 
