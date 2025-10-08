@@ -51,15 +51,15 @@ env:
   - name: PORT
     value: "3001"
   - name: DB_HOST
-    value: "tunefy-db-rw"  # CloudNativePG read-write service
+    value: "tunefy-db-rw.tunefy-dev.svc.cluster.local"  # CloudNativePG read-write service (FQDN)
   - name: DB_PORT
     value: "5432"
   - name: DB_NAME
     value: "tunefy"
   - name: DB_USER
-    value: "tunefy"
+    value: "tunefy_user"
   - name: DB_PASSWORD
-    value: "tunefy_dev_password"
+    value: "Ey7zF2qZdN6g10PW1pafHIxkR"
 
 secrets:
   enabled: false
