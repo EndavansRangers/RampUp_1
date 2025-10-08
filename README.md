@@ -4,6 +4,7 @@ Tunefy is a collaborative music session application that allows a host to create
 
 ## Features
 
+
 - Host and Guest views for managing music sessions
 - Spotify API integration for music selection and playback
 - Real-time session management with unique session IDs
