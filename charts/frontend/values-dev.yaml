@@ -14,7 +14,7 @@ service:
   targetPort: 80
 
 ingress:
-  enabled: false  # Temporarily disabled due to AWS Load Balancer Controller issues
+  enabled: true
   className: alb
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
