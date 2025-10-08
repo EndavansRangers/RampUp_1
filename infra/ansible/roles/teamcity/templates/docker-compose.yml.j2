@@ -12,4 +12,7 @@ services:
     restart: always
     environment:
       - SERVER_URL=http://teamcity:8111
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - {{ teamcity_dir }}/agent:/data/teamcity_agent/conf
     depends_on: [ teamcity ]
