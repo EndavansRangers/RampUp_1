@@ -1,7 +1,7 @@
 color: "blue"  # Octopus alterna entre "blue" y "green"
 
 image:
-  repository: 365074502389.dkr.ecr.us-east-1.amazonaws.com/tunefy-backend-dev
+  repository: 638325785916.dkr.ecr.us-east-1.amazonaws.com/tunefy-backend-dev
   tag: "#{Octopus.Release.Number}"
   pullPolicy: IfNotPresent
 
@@ -51,7 +51,7 @@ env:
   - name: PORT
     value: "3001"
   - name: DB_HOST
-    value: "postgresql"
+    value: "tunefy-db-rw"  # CloudNativePG read-write service
   - name: DB_PORT
     value: "5432"
   - name: DB_NAME

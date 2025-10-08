@@ -1,5 +1,5 @@
 image:
-  repository: 365074502389.dkr.ecr.us-east-1.amazonaws.com/tunefy-frontend-dev
+  repository: 638325785916.dkr.ecr.us-east-1.amazonaws.com/tunefy-frontend-dev
   tag: "#{Octopus.Release.Number}"
   pullPolicy: IfNotPresent
 

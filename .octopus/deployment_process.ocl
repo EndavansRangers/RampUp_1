@@ -140,7 +140,9 @@ step "deploy-postgresql" {
     action {
         action_type = "Octopus.Script"
         environments = ["dev"]
-        is_required = true
+        is_disabled = true
+        is_required = false
+        notes = "DISABLED: Using CloudNativePG operator instead"
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "2"
             Octopus.Action.AutoRetry.MinimumBackoff = "5"
