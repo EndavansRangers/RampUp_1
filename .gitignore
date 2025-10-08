@@ -19,3 +19,5 @@ deploy/
 TROUBLESHOOTING_RESUMEN.txt
 
 docs/
+
+infra/terraform/set-aws-creds.sh
