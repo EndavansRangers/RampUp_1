@@ -1,7 +1,7 @@
 step "setup-kubeconfig" {
     name = "Setup Kubeconfig"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployment"
+        Octopus.Action.TargetRoles = "k8s-deployer"
     }
 
     action {
@@ -47,7 +47,7 @@ step "setup-kubeconfig" {
                 # Test connection
                 kubectl version --client
                 kubectl get nodes
-                    EOT
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
@@ -58,7 +58,7 @@ step "setup-kubeconfig" {
 step "upsert-ecr-credentials" {
     name = "Upsert ECR Credentials"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployment"
+        Octopus.Action.TargetRoles = "k8s-deployer"
     }
 
     action {
@@ -93,7 +93,7 @@ step "upsert-ecr-credentials" {
                   --dry-run=client -o yaml | kubectl apply -f -
                 
                 echo "✓ ECR credentials updated in namespace $NAMESPACE"
-                    EOT
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
@@ -104,7 +104,7 @@ step "upsert-ecr-credentials" {
 step "setup-storage" {
     name = "Setup Storage Class"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployment"
+        Octopus.Action.TargetRoles = "k8s-deployer"
     }
 
     action {
@@ -134,7 +134,7 @@ step "setup-storage" {
 step "deploy-postgresql" {
     name = "Deploy PostgreSQL"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployment"
+        Octopus.Action.TargetRoles = "k8s-deployer"
     }
 
     action {
@@ -166,7 +166,7 @@ step "deploy-postgresql" {
 step "deploy-helm-frontend" {
     name = "Deploy Helm (Frontend)"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployment"
+        Octopus.Action.TargetRoles = "k8s-deployer"
     }
 
     action {
@@ -198,7 +198,7 @@ step "deploy-helm-frontend" {
 step "deploy-helm-backend-colornext" {
     name = "Deploy Helm (Backend ColorNext)"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployment"
+        Octopus.Action.TargetRoles = "k8s-deployer"
     }
 
     action {
@@ -230,7 +230,7 @@ step "deploy-helm-backend-colornext" {
 step "smoke-test" {
     name = "Smoke test"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployment"
+        Octopus.Action.TargetRoles = "k8s-deployer"
     }
 
     action {
@@ -264,7 +264,7 @@ step "smoke-test" {
                 
                 # Set output variable for next step
                 set_octopusvariable "SmokeTestResult" "success"
-                    EOT
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
@@ -275,7 +275,7 @@ step "smoke-test" {
 step "update-colorlive" {
     name = "Update ColorLive"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployment"
+        Octopus.Action.TargetRoles = "k8s-deployer"
     }
 
     action {
@@ -298,7 +298,7 @@ step "update-colorlive" {
                 
                 echo "✓ ColorLive will be: #{ColorNext} in next deployment"
                 echo "Note: This is logged for tracking. Manual update in Octopus UI or use API."
-                    EOT
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
@@ -309,7 +309,7 @@ step "update-colorlive" {
 step "deploy-monitoring" {
     name = "Deploy Monitoring Stack"
     properties = {
-        Octopus.Action.TargetRoles = "k8s-deployment"
+        Octopus.Action.TargetRoles = "k8s-deployer"
     }
 
     action {
@@ -348,7 +348,7 @@ step "deploy-monitoring" {
                     echo "ERROR: deploy-monitoring.sh not found in $(pwd)"
                     exit 1
                 fi
-                    EOT
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
