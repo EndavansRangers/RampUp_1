@@ -100,12 +100,12 @@ resource "aws_launch_template" "wk" {
   }
 }
 
-# ASG Worker (1 nodo)
+# ASG Worker (2 nodos para testing)
 resource "aws_autoscaling_group" "wk" {
   name                      = "${local.name}-wk-asg"
-  max_size                  = 1
-  min_size                  = 1
-  desired_capacity          = 1
+  max_size                  = 3
+  min_size                  = 2
+  desired_capacity          = 2
   vpc_zone_identifier       = local.private_subnet_ids
   health_check_type         = "EC2"
   launch_template {

@@ -20,20 +20,24 @@ variable "nodes_instance_profile_name" { type = string }
 
 # Instance types
 variable "cp_instance_type" {
-  type    = string
-  default = "c7i-flex.large"
+  type        = string
+  default     = "c7i-flex.large"
+  description = "Instance type for control plane (Free Tier 750h first year)"
 }
 variable "wk_instance_type" {
-  type    = string
-  default = "t3.small"
+  type        = string
+  default     = "t3.micro"
+  description = "Instance type for worker nodes (Free Tier 750h/month permanent)"
 }
 variable "tc_instance_type" {
-  type    = string
-  default = "c7i-flex.large"
+  type        = string
+  default     = "c7i-flex.large"
+  description = "Instance type for TeamCity (Free Tier 750h first year)"
 }
 variable "oc_instance_type" {
-  type    = string
-  default = "c7i-flex.large"
+  type        = string
+  default     = "c7i-flex.large"
+  description = "Instance type for Octopus Deploy (Free Tier 750h first year)"
 }
 
 # IP for bastion SG (CIDR /32)

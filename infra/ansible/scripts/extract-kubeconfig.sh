@@ -5,8 +5,8 @@
 set -e
 
 # Configuración
-BASTION_IP="54.198.71.71"
-CP_PRIVATE_IP="10.20.90.15"
+BASTION_IP="3.85.38.87"
+CP_PRIVATE_IP="10.20.91.106"
 SSH_KEY="$HOME/.ssh/tunefy-dev-key.pem"
 OUTPUT_FILE="./kubeconfig-dev.yaml"
 
@@ -61,14 +61,17 @@ cp "$OUTPUT_FILE" "${OUTPUT_FILE}.backup"
 # Información sobre modificación del server
 echo "⚠️  IMPORTANTE: Configuración del server endpoint"
 echo ""
-echo "El kubeconfig descargado apunta a: https://10.20.90.15:6443"
+echo "El kubeconfig descargado apunta a: https://10.20.91.106:6443"
 echo ""
-echo "Opciones:"
-echo "1. Si Octopus está DENTRO de la VPC (instancia oc1): NO modificar"
-echo "2. Si Octopus está FUERA de la VPC: Necesitas exponer el API server"
+echo "Para acceso desde Octopus (dentro de VPC), usaremos el NLB endpoint"
+echo "NLB DNS: tunefy-dev-cp-nlb-e606ecae7cc8bfb6.elb.us-east-1.amazonaws.com"
 echo ""
-echo "Para este setup, Octopus (oc1: 10.20.62.98) está DENTRO de la VPC"
-echo "Por lo tanto, el kubeconfig NO necesita modificación ✅"
+echo "Modificando kubeconfig para usar NLB..."
+
+# Modificar el server endpoint para usar NLB
+sed -i "s|server: https://10.20.91.106:6443|server: https://tunefy-dev-cp-nlb-e606ecae7cc8bfb6.elb.us-east-1.amazonaws.com:6443|g" "$OUTPUT_FILE"
+
+echo "✅ Kubeconfig actualizado para usar NLB"
 echo ""
 
 # Verificar permisos
@@ -86,7 +89,7 @@ echo "   - ${OUTPUT_FILE}.backup (backup original)"
 echo ""
 
 echo "🎯 Próximos pasos:"
-echo "1. Copiar el kubeconfig al servidor Octopus (oc1: 10.20.62.98)"
+echo "1. Copiar el kubeconfig al servidor Octopus (oc1: 10.20.63.199)"
 echo "2. En Octopus, configurar Kubernetes Target:"
 echo "   - Authentication: Kubernetes certificate"
 echo "   - Kubeconfig: Contenido de $OUTPUT_FILE"

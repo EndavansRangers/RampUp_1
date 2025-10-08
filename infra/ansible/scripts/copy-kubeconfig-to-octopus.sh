@@ -5,7 +5,7 @@
 set -e
 
 # Configuración
-BASTION_IP="54.198.71.71"
+BASTION_IP="3.85.38.87"
 OCTOPUS_PRIVATE_IP="10.20.62.98"
 SSH_KEY="$HOME/.ssh/tunefy-dev-key.pem"
 KUBECONFIG_FILE="./kubeconfig-dev.yaml"

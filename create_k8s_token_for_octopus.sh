@@ -6,7 +6,7 @@ echo "Creating Kubernetes ServiceAccount for Octopus"
 echo "=========================================="
 
 # Create namespace if it doesn't exist
-kubectl create namespace tunefy --dry-run=client -o yaml | kubectl apply -f -
+kubectl create namespace tunefy-dev --dry-run=client -o yaml | kubectl apply -f -
 
 # Create ServiceAccount
 cat <<EOF | kubectl apply -f -
@@ -14,13 +14,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: octopus-deploy
-  namespace: tunefy
+  namespace: tunefy-dev
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: octopus-deploy-token
-  namespace: tunefy
+  namespace: tunefy-dev
   annotations:
     kubernetes.io/service-account.name: octopus-deploy
 type: kubernetes.io/service-account-token
@@ -45,7 +45,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: octopus-deploy
-  namespace: tunefy
+  namespace: tunefy-dev
 EOF
 
 echo ""
@@ -59,10 +59,10 @@ echo "=========================================="
 echo ""
 
 # Get the token
-TOKEN=$(kubectl get secret octopus-deploy-token -n tunefy -o jsonpath='{.data.token}' | base64 -d)
+TOKEN=$(kubectl get secret octopus-deploy-token -n tunefy-dev -o jsonpath='{.data.token}' | base64 -d)
 
 # Get the CA certificate
-CA_CERT=$(kubectl get secret octopus-deploy-token -n tunefy -o jsonpath='{.data.ca\.crt}')
+CA_CERT=$(kubectl get secret octopus-deploy-token -n tunefy-dev -o jsonpath='{.data.ca\.crt}')
 
 # Get the API server URL
 API_SERVER=$(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}')

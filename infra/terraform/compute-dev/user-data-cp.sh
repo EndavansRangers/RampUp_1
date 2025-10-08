@@ -77,9 +77,26 @@ sudo -u ubuntu kubectl create -f https://raw.githubusercontent.com/projectcalico
 
 # Save join command for workers
 echo "Saving join command..."
-kubeadm token create --print-join-command | sudo tee /home/ubuntu/kubeadm-join-command.sh
+JOIN_COMMAND=$(kubeadm token create --print-join-command)
+echo "$JOIN_COMMAND" | sudo tee /home/ubuntu/kubeadm-join-command.sh
 sudo chmod +x /home/ubuntu/kubeadm-join-command.sh
 sudo chown ubuntu:ubuntu /home/ubuntu/kubeadm-join-command.sh
+
+# Install AWS CLI if not present
+if ! command -v aws &> /dev/null; then
+  echo "Installing AWS CLI..."
+  sudo apt-get update
+  sudo apt-get install -y awscli
+fi
+
+# Save join command to SSM Parameter Store for auto-join
+echo "Saving join command to SSM Parameter Store..."
+aws ssm put-parameter \
+  --name "/tunefy/dev/k8s/join-command" \
+  --value "$JOIN_COMMAND" \
+  --type "String" \
+  --overwrite \
+  --region us-east-1 || echo "⚠️  Warning: Could not save to SSM (will retry later)"
 
 echo "=========================================="
 echo "Kubernetes Control Plane Setup Complete!"
