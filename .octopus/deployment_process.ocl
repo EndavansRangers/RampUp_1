@@ -26,17 +26,17 @@ step "setup-kubeconfig" {
                 clusters:
                 - cluster:
                     insecure-skip-tls-verify: true
-                    server: https://127.0.0.1:6443
+                    server: https://tunefy-dev-cp-nlb-e606ecae7cc8bfb6.elb.us-east-1.amazonaws.com:6443
                   name: tunefy-dev
                 contexts:
                 - context:
                     cluster: tunefy-dev
-                    user: admin
+                    user: octopus-deploy
                     namespace: tunefy-dev
                   name: tunefy-dev
                 current-context: tunefy-dev
                 users:
-                - name: admin
+                - name: octopus-deploy
                   user:
                     token: "#{Kubernetes.Token}"
                 KUBECONFIG_EOF
@@ -74,7 +74,7 @@ step "upsert-ecr-credentials" {
                 echo "=== Upserting ECR pull secret ==="
                 
                 # Get AWS credentials from IAM Role (CP has IAM profile)
-                ACCOUNT_ID="365074502389"
+                ACCOUNT_ID="638325785916"
                 REGION="us-east-1"
                 NAMESPACE="tunefy-dev"
                 
