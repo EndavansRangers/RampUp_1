@@ -15,4 +15,5 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - {{ teamcity_dir }}/agent:/data/teamcity_agent/conf
+      - /usr/local/bin/helm:/usr/local/bin/helm:ro
     depends_on: [ teamcity ]
