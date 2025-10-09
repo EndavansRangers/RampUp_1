@@ -73,7 +73,7 @@ resource "aws_autoscaling_group" "cp" {
 resource "aws_launch_template" "wk" {
   name_prefix   = "${local.name}-wk-"
   image_id      = data.aws_ami.ubuntu.id
-  instance_type = var.wk_instance_type
+  instance_type = "c7i-flex.large"  # 2 vCPU, 4GB RAM (upgraded from t3.small)
   key_name      = var.key_name
 
   iam_instance_profile {
@@ -100,14 +100,15 @@ resource "aws_launch_template" "wk" {
   }
 }
 
-# ASG Worker (2 nodos para testing)
+# ASG Worker (0-2 nodes, start at 0 for cost savings)
 resource "aws_autoscaling_group" "wk" {
   name                      = "${local.name}-wk-asg"
-  max_size                  = 3
-  min_size                  = 2
-  desired_capacity          = 2
+  max_size                  = 2  # Maximum 2 workers
+  min_size                  = 0  # Allow scaling down to 0 when not in use
+  desired_capacity          = 0  # Start with 0, manually scale to 2 when needed
   vpc_zone_identifier       = local.private_subnet_ids
   health_check_type         = "EC2"
+  health_check_grace_period = 300  # 5 min grace for worker to join cluster
   launch_template {
     id      = aws_launch_template.wk.id
     version = "$Latest"

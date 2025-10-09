@@ -36,11 +36,11 @@ ingress:
 
 resources:
   limits:
-    cpu: 150m
-    memory: 192Mi
+    cpu: 200m
+    memory: 256Mi
   requests:
-    cpu: 50m
-    memory: 96Mi
+    cpu: 100m
+    memory: 128Mi
 
 livenessProbe:
   httpGet:
