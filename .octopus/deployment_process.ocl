@@ -212,6 +212,39 @@ step "setup-storage" {
     }
 }
 
+step "deploy-postgresql" {
+    name = "Deploy PostgreSQL"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        notes = "Deploy PostgreSQL StatefulSet with persistent storage"
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "2"
+            Octopus.Action.AutoRetry.MinimumBackoff = "10"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "cd charts/postgresql && chmod +x deploy-postgresql.sh && ./deploy-postgresql.sh"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+
+        packages "charts" {
+            acquisition_location = "ExecutionTarget"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
 step "init-postgresql-schema" {
     name = "Initialize PostgreSQL Schema"
     properties = {
