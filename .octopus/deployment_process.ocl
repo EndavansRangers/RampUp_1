@@ -238,6 +238,10 @@ step "deploy-postgresql" {
                 echo "=== Deploying PostgreSQL StatefulSet ==="
                 echo "Package directory: ${PACKAGE_DIR}"
 
+                echo "Cleaning up legacy CloudNativePG resources (if any)..."
+                kubectl delete cluster.postgresql.cnpg.io tunefy-db -n tunefy-dev --ignore-not-found
+                kubectl delete svc tunefy-db-rw -n tunefy-dev --ignore-not-found
+
                 MANIFEST=$(find "$PACKAGE_DIR" -maxdepth 3 -type f -name "postgres-statefulset.yaml" | head -n 1 || true)
 
                 if [ -z "$MANIFEST" ] || [ ! -f "$MANIFEST" ]; then
