@@ -148,23 +148,27 @@ step "cleanup-resources" {
                 
                 # Force delete any pods stuck in Terminating for more than 5 minutes
                 echo "Checking for long-running Terminating pods..."
-                kubectl get pods -n $NAMESPACE --field-selector status.phase=Terminating -o json | \
-                  jq -r '.items[] | select(.metadata.deletionTimestamp != null) | select((now - (.metadata.deletionTimestamp | fromdatetime)) > 300) | .metadata.name' | \
+                # Get pods in Terminating state (simpler approach without jq)
+                kubectl get pods -n $NAMESPACE --field-selector status.phase=Terminating --no-headers 2>/dev/null | \
+                  awk '{print $1}' | \
                   xargs -r kubectl delete pod -n $NAMESPACE --force --grace-period=0 --ignore-not-found=true || true
                 
                 # NUEVO: Eliminar pods de color inactivo (blue/green)
                 echo "Deleting pods from inactive color (blue/green optimization)..."
                 CURRENT_COLOR=$(kubectl get service backend -n $NAMESPACE -o jsonpath='{.spec.selector.colorLive}' 2>/dev/null || echo "unknown")
-                if [ "$CURRENT_COLOR" != "unknown" ]; then
+                if [ "$CURRENT_COLOR" != "unknown" ] && [ "$CURRENT_COLOR" != "true" ] && [ "$CURRENT_COLOR" != "false" ]; then
                     INACTIVE_COLOR=$([ "$CURRENT_COLOR" = "blue" ] && echo "green" || echo "blue")
                     echo "Current live color: $CURRENT_COLOR, deleting $INACTIVE_COLOR pods..."
                     kubectl delete pods -n $NAMESPACE -l color=$INACTIVE_COLOR --force --grace-period=0 --ignore-not-found=true || true
+                else
+                    echo "Skipping color cleanup (colorLive not set or invalid: $CURRENT_COLOR)"
                 fi
                 
                 # NUEVO: Verificar espacio en disco (warning si hay muchas imágenes)
                 echo "Checking disk space and image cache..."
-                IMAGE_COUNT=$(kubectl get nodes -o json | jq -r '.items[].status.images | length' | head -1)
-                echo "Worker has $IMAGE_COUNT images cached"
+                # Count images without jq
+                IMAGE_COUNT=$(kubectl get nodes -o jsonpath='{.items[*].status.images[*].names[0]}' 2>/dev/null | wc -w || echo "0")
+                echo "Worker has approximately $IMAGE_COUNT images cached"
                 if [ "$IMAGE_COUNT" -gt 50 ]; then
                     echo "⚠️  WARNING: Many images cached ($IMAGE_COUNT), node may be low on disk space"
                     echo "Consider cleaning up: crictl rmi --prune on the worker node"
