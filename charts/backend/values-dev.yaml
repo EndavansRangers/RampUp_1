@@ -52,7 +52,7 @@ env:
   - name: PORT
     value: "3001"
   - name: DB_HOST
-    value: "tunefy-db-rw.tunefy-dev.svc.cluster.local"  # CloudNativePG read-write service (FQDN)
+    value: "10.101.251.247"  # Direct IP to avoid DNS resolution issues
   - name: DB_PORT
     value: "5432"
   - name: DB_NAME
