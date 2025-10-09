@@ -235,18 +235,22 @@ step "deploy-postgresql-cloudnativepg" {
                 set -euo pipefail
 
                 PACKAGE_DIR="#{Octopus.Action.Package[charts].ExtractedPath}"
-                MANIFEST="${PACKAGE_DIR}/tunefy-db-cluster.yaml"
 
                 echo "=== Deploying PostgreSQL CloudNativePG cluster ==="
                 echo "Package directory: ${PACKAGE_DIR}"
 
-                if [ ! -f "$MANIFEST" ]; then
-                    echo "ERROR: CloudNativePG manifest not found at $MANIFEST"
+                MANIFEST=$(find "$PACKAGE_DIR" -maxdepth 3 -type f -name "tunefy-db-cluster.yaml" | head -n 1 || true)
+
+                if [ -z "$MANIFEST" ] || [ ! -f "$MANIFEST" ]; then
+                    echo "ERROR: CloudNativePG manifest tunefy-db-cluster.yaml not found inside $PACKAGE_DIR"
                     echo "Listing package contents for debugging:"
                     ls -al "$PACKAGE_DIR"
+                    echo "--- Recursive listing (depth 2) ---"
+                    find "$PACKAGE_DIR" -maxdepth 2 -type f -print
                     exit 1
                 fi
 
+                echo "Applying manifest located at $MANIFEST"
                 kubectl apply -f "$MANIFEST"
 
                 echo "Waiting for CloudNativePG cluster to report Ready status..."
