@@ -231,7 +231,7 @@ step "deploy-postgresql-cloudnativepg" {
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "1"
             Octopus.Action.RunOnServer = "false"
-            Octopus.Action.Script.ScriptBody = "kubectl apply -f k8s/tunefy-db-cluster.yaml"
+            Octopus.Action.Script.ScriptBody = "kubectl apply -f charts/tunefy-db-cluster.yaml"
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
