@@ -51,8 +51,8 @@ env:
     value: "development"
   - name: PORT
     value: "3001"
-        - name: DB_HOST
-          value: "10.100.183.57"  # Direct IP to avoid DNS resolution issues
+  - name: DB_HOST
+    value: "10.100.183.57"  # Direct IP to avoid DNS resolution issues
   - name: DB_PORT
     value: "5432"
   - name: DB_NAME
