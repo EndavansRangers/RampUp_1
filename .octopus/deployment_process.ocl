@@ -131,8 +131,8 @@ step "setup-storage" {
     }
 }
 
-step "deploy-postgresql" {
-    name = "Deploy PostgreSQL"
+step "init-postgresql-schema" {
+    name = "Initialize PostgreSQL Schema"
     properties = {
         Octopus.Action.TargetRoles = "k8s-deployer"
     }
@@ -140,27 +140,66 @@ step "deploy-postgresql" {
     action {
         action_type = "Octopus.Script"
         environments = ["dev"]
-        is_disabled = true
-        is_required = false
-        notes = "DISABLED: Using CloudNativePG operator instead"
+        is_required = true
+        notes = "Create database tables if they don't exist"
         properties = {
-            Octopus.Action.AutoRetry.MaximumCount = "2"
+            Octopus.Action.AutoRetry.MaximumCount = "3"
             Octopus.Action.AutoRetry.MinimumBackoff = "5"
             Octopus.Action.RunOnServer = "false"
-            Octopus.Action.Script.ScriptBody = "cd charts/charts && chmod +x deploy-postgresql.sh && ./deploy-postgresql.sh"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Initializing PostgreSQL Schema ==="
+                
+                NAMESPACE="tunefy-dev"
+                POSTGRES_POD="postgres-0"
+                
+                # Wait for PostgreSQL to be ready
+                echo "Waiting for PostgreSQL pod to be ready..."
+                kubectl wait --for=condition=ready pod/$POSTGRES_POD -n $NAMESPACE --timeout=120s
+                
+                # Create SQL script inside the pod
+                kubectl exec -n $NAMESPACE $POSTGRES_POD -- bash -c "cat > /tmp/init_schema.sql << 'EOSQL'
+CREATE TABLE IF NOT EXISTS merged_songs (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    song_name VARCHAR(500) NOT NULL,
+    artist_name VARCHAR(500) NOT NULL,
+    popularity INTEGER DEFAULT 0,
+    votes INTEGER DEFAULT 0,
+    session_id VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS top_songs (
+    id SERIAL PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    song_name VARCHAR(500) NOT NULL,
+    artist_name VARCHAR(500) NOT NULL,
+    popularity INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_merged_songs_user_id ON merged_songs(user_id);
+CREATE INDEX IF NOT EXISTS idx_merged_songs_popularity ON merged_songs(popularity);
+CREATE INDEX IF NOT EXISTS idx_merged_songs_votes ON merged_songs(votes);
+CREATE INDEX IF NOT EXISTS idx_merged_songs_session_id ON merged_songs(session_id);
+CREATE INDEX IF NOT EXISTS idx_top_songs_user_id ON top_songs(user_id);
+CREATE INDEX IF NOT EXISTS idx_top_songs_popularity ON top_songs(popularity);
+EOSQL
+"
+                
+                # Execute the SQL script
+                echo "Creating tables and indexes..."
+                kubectl exec -n $NAMESPACE $POSTGRES_POD -- psql -U tunefy_user -d tunefy -f /tmp/init_schema.sql
+                
+                echo "✓ PostgreSQL schema initialized successfully"
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
-        }
-
-        packages "charts" {
-            acquisition_location = "ExecutionTarget"
-            feed = "octopus-server-built-in"
-            package_id = "charts"
-            properties = {
-                Extract = "True"
-                SelectionMode = "immediate"
-            }
         }
     }
 }
