@@ -242,6 +242,7 @@ step "deploy-postgresql" {
                 kubectl delete cluster.postgresql.cnpg.io tunefy-db -n tunefy-dev --ignore-not-found
                 kubectl delete svc tunefy-db-rw -n tunefy-dev --ignore-not-found
                 kubectl delete statefulset postgres -n tunefy-dev --ignore-not-found --wait=true
+                kubectl delete pvc postgres-storage-postgres-0 -n tunefy-dev --ignore-not-found --wait=true
 
                 MANIFEST=$(find "$PACKAGE_DIR" -maxdepth 3 -type f -name "postgres-statefulset.yaml" | head -n 1 || true)
 
@@ -251,6 +252,9 @@ step "deploy-postgresql" {
                     find "$PACKAGE_DIR" -maxdepth 2 -type f -print
                     exit 1
                 fi
+
+                # Ensure storage class fallback to gp2 to avoid gp3 provisioning issues
+                sed -i 's/storageClassName: *gp3/storageClassName: gp2/' "$MANIFEST"
 
                 echo "Applying manifest located at $MANIFEST"
                 kubectl apply -f "$MANIFEST"
