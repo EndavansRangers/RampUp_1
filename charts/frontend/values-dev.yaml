@@ -48,6 +48,16 @@ livenessProbe:
     port: 80
   initialDelaySeconds: 30
   periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: 80
+  initialDelaySeconds: 20  # Increased for image pull time
+  periodSeconds: 5
+  timeoutSeconds: 5  # Increased to handle slower responses
+  failureThreshold: 6  # Allow more failures before marking as unready
   timeoutSeconds: 10
   failureThreshold: 3
 
