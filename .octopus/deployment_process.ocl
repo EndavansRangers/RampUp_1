@@ -555,7 +555,6 @@ step "deploy-monitoring" {
     action {
         action_type = "Octopus.Script"
         environments = ["dev"]
-        is_disabled = true
         properties = {
             Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptBody = <<-EOT
