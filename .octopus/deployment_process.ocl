@@ -226,7 +226,7 @@ step "deploy-postgresql" {
         action_type = "Octopus.Script"
         environments = ["dev"]
         is_required = true
-        notes = "Deploy PostgreSQL StatefulSet via Helm chart."
+        notes = "Deploy PostgreSQL using hostPath for better compatibility"
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "1"
             Octopus.Action.RunOnServer = "false"
@@ -234,37 +234,63 @@ step "deploy-postgresql" {
                 #!/bin/bash
                 set -euo pipefail
 
-                PACKAGE_DIR="#{Octopus.Action.Package[charts].ExtractedPath}"
-                echo "=== Deploying PostgreSQL StatefulSet ==="
-                echo "Package directory: ${PACKAGE_DIR}"
+                echo "=== Deploying PostgreSQL ==="
+                NAMESPACE="tunefy-dev"
 
-                echo "Cleaning up legacy CloudNativePG resources (if any)..."
-                kubectl delete cluster.postgresql.cnpg.io tunefy-db -n tunefy-dev --ignore-not-found
-                kubectl delete svc tunefy-db-rw -n tunefy-dev --ignore-not-found
-                kubectl delete statefulset postgres -n tunefy-dev --ignore-not-found --wait=true
-                kubectl delete pvc postgres-storage-postgres-0 -n tunefy-dev --ignore-not-found --wait=true
-
-                MANIFEST=$(find "$PACKAGE_DIR" -maxdepth 3 -type f -name "postgres-statefulset.yaml" | head -n 1 || true)
-
-                if [ -z "$MANIFEST" ] || [ ! -f "$MANIFEST" ]; then
-                    echo "ERROR: postgres-statefulset.yaml not found inside $PACKAGE_DIR"
-                    echo "Listing package contents for debugging:"
-                    find "$PACKAGE_DIR" -maxdepth 2 -type f -print
+                # Determine the correct path for the PostgreSQL files
+                # In Octopus, the charts package is extracted to charts/charts/
+                if [ -d "charts/postgresql" ]; then
+                    CHART_DIR="charts/postgresql"
+                elif [ -d "postgresql" ]; then
+                    CHART_DIR="postgresql"
+                else
+                    echo "❌ ERROR: Cannot find PostgreSQL chart directory"
+                    echo "Current directory: $(pwd)"
+                    echo "Directory contents:"
+                    ls -la
                     exit 1
                 fi
 
-                # Ensure storage class fallback to gp2 to avoid gp3 provisioning issues
-                sed -i 's/storageClassName: *gp3/storageClassName: gp2/' "$MANIFEST"
+                echo "Using chart directory: $CHART_DIR"
 
-                echo "Applying manifest located at $MANIFEST"
-                kubectl apply -f "$MANIFEST"
+                # Clean up any existing PostgreSQL resources
+                echo "Cleaning up existing PostgreSQL resources..."
+                kubectl delete statefulset postgres -n "$NAMESPACE" --ignore-not-found=true || true
+                kubectl delete deployment postgres -n "$NAMESPACE" --ignore-not-found=true || true
+                kubectl delete pvc postgres-storage-postgres-0 -n "$NAMESPACE" --ignore-not-found=true || true
 
-                echo "Waiting for PostgreSQL StatefulSet to be ready..."
-                kubectl rollout status statefulset/postgres -n tunefy-dev --timeout=240s
+                # Apply PostgreSQL using hostPath (works without EBS CSI issues)
+                echo "Applying PostgreSQL with hostPath..."
+                kubectl apply -f "$CHART_DIR/postgres-hostpath.yaml" --namespace "$NAMESPACE"
 
-                kubectl wait --for=condition=ready pod -l app=postgres -n tunefy-dev --timeout=180s
+                # Wait for PostgreSQL pod to be ready
+                echo "Waiting for PostgreSQL pod to be ready (this may take up to 2 minutes)..."
+                kubectl wait --for=condition=ready pod -l app=postgres -n "$NAMESPACE" --timeout=120s
 
-                echo "PostgreSQL StatefulSet deployed successfully"
+                # Verify PostgreSQL is running
+                echo "Verifying PostgreSQL status..."
+                kubectl get deployment postgres -n "$NAMESPACE"
+                kubectl get pods -n "$NAMESPACE" -l app=postgres
+                kubectl get svc tunefy-db-rw -n "$NAMESPACE"
+
+                # Initialize database schema if needed
+                echo "Initializing database schema..."
+                POSTGRES_POD=$(kubectl get pods -n "$NAMESPACE" -l app=postgres -o jsonpath='{.items[0].metadata.name}')
+                
+                # Check if tables already exist
+                TABLE_COUNT=$(kubectl exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U tunefy_user -d tunefy -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
+
+                if [ "$TABLE_COUNT" -gt 0 ]; then
+                    echo "✓ Database schema already exists ($TABLE_COUNT tables found)"
+                else
+                    echo "Initializing database schema..."
+                    # Copy and execute database setup script
+                    kubectl cp "$CHART_DIR/database_setup.sql" "$NAMESPACE/$POSTGRES_POD:/tmp/database_setup.sql"
+                    kubectl exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U tunefy_user -d tunefy -f /tmp/database_setup.sql
+                    echo "✓ Database schema initialized successfully"
+                fi
+
+                echo "✓ PostgreSQL deployment completed successfully"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
