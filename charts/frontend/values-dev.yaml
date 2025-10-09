@@ -36,11 +36,11 @@ ingress:
 
 resources:
   limits:
-    cpu: 100m
-    memory: 128Mi
+    cpu: 150m
+    memory: 192Mi
   requests:
-    cpu: 30m
-    memory: 64Mi
+    cpu: 50m
+    memory: 96Mi
 
 livenessProbe:
   httpGet:
@@ -48,16 +48,6 @@ livenessProbe:
     port: 80
   initialDelaySeconds: 30
   periodSeconds: 10
-  timeoutSeconds: 5
-
-readinessProbe:
-  httpGet:
-    path: /
-    port: 80
-  initialDelaySeconds: 20  # Increased for image pull time
-  periodSeconds: 5
-  timeoutSeconds: 5  # Increased to handle slower responses
-  failureThreshold: 6  # Allow more failures before marking as unready
   timeoutSeconds: 10
   failureThreshold: 3
 

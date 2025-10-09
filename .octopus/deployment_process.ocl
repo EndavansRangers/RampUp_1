@@ -152,8 +152,28 @@ step "cleanup-resources" {
                   jq -r '.items[] | select(.metadata.deletionTimestamp != null) | select((now - (.metadata.deletionTimestamp | fromdatetime)) > 300) | .metadata.name' | \
                   xargs -r kubectl delete pod -n $NAMESPACE --force --grace-period=0 --ignore-not-found=true || true
                 
+                # NUEVO: Eliminar pods de color inactivo (blue/green)
+                echo "Deleting pods from inactive color (blue/green optimization)..."
+                CURRENT_COLOR=$(kubectl get service backend -n $NAMESPACE -o jsonpath='{.spec.selector.colorLive}' 2>/dev/null || echo "unknown")
+                if [ "$CURRENT_COLOR" != "unknown" ]; then
+                    INACTIVE_COLOR=$([ "$CURRENT_COLOR" = "blue" ] && echo "green" || echo "blue")
+                    echo "Current live color: $CURRENT_COLOR, deleting $INACTIVE_COLOR pods..."
+                    kubectl delete pods -n $NAMESPACE -l color=$INACTIVE_COLOR --force --grace-period=0 --ignore-not-found=true || true
+                fi
+                
+                # NUEVO: Verificar espacio en disco (warning si hay muchas imágenes)
+                echo "Checking disk space and image cache..."
+                IMAGE_COUNT=$(kubectl get nodes -o json | jq -r '.items[].status.images | length' | head -1)
+                echo "Worker has $IMAGE_COUNT images cached"
+                if [ "$IMAGE_COUNT" -gt 50 ]; then
+                    echo "⚠️  WARNING: Many images cached ($IMAGE_COUNT), node may be low on disk space"
+                    echo "Consider cleaning up: crictl rmi --prune on the worker node"
+                fi
+                
                 echo "✓ Cleanup completed"
-                sleep 5
+                # AUMENTADO: Esperar más tiempo para que recursos se liberen
+                echo "Waiting for resources to be fully freed..."
+                sleep 10
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
@@ -276,8 +296,8 @@ step "deploy-helm-frontend" {
         environments = ["dev"]
         is_required = true
         properties = {
-            Octopus.Action.AutoRetry.MaximumCount = "3"
-            Octopus.Action.AutoRetry.MinimumBackoff = "3"
+            Octopus.Action.AutoRetry.MaximumCount = "1"
+            Octopus.Action.AutoRetry.MinimumBackoff = "5"
             Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptBody = "cd charts/charts && chmod +x deploy-frontend.sh && ./deploy-frontend.sh \"#{Octopus.Release.Number}\""
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -308,8 +328,8 @@ step "deploy-helm-backend-colornext" {
         environments = ["dev"]
         is_required = true
         properties = {
-            Octopus.Action.AutoRetry.MaximumCount = "3"
-            Octopus.Action.AutoRetry.MinimumBackoff = "15"
+            Octopus.Action.AutoRetry.MaximumCount = "1"
+            Octopus.Action.AutoRetry.MinimumBackoff = "10"
             Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptBody = "cd charts/charts && chmod +x deploy-backend.sh && ./deploy-backend.sh \"#{Octopus.Release.Number}\" \"#{ColorNext}\""
             Octopus.Action.Script.ScriptSource = "Inline"
