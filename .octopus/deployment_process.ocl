@@ -195,6 +195,7 @@ step "setup-storage" {
     action {
         action_type = "Octopus.Script"
         environments = ["dev"]
+        is_disabled = true
         is_required = true
         properties = {
             Octopus.Action.RunOnServer = "false"
@@ -225,6 +226,7 @@ step "deploy-postgresql" {
     action {
         action_type = "Octopus.Script"
         environments = ["dev"]
+        is_disabled = true
         is_required = true
         notes = "Deploy PostgreSQL using hostPath for better compatibility"
         properties = {
@@ -233,10 +235,10 @@ step "deploy-postgresql" {
             Octopus.Action.Script.ScriptBody = <<-EOT
                 #!/bin/bash
                 set -euo pipefail
-
+                
                 echo "=== Deploying PostgreSQL ==="
                 NAMESPACE="tunefy-dev"
-
+                
                 # Determine the correct path for the PostgreSQL files
                 # In Octopus, the charts package is extracted to charts/charts/
                 if [ -d "charts/postgresql" ]; then
@@ -250,36 +252,36 @@ step "deploy-postgresql" {
                     ls -la
                     exit 1
                 fi
-
+                
                 echo "Using chart directory: $CHART_DIR"
-
+                
                 # Clean up any existing PostgreSQL resources
                 echo "Cleaning up existing PostgreSQL resources..."
                 kubectl delete statefulset postgres -n "$NAMESPACE" --ignore-not-found=true || true
                 kubectl delete deployment postgres -n "$NAMESPACE" --ignore-not-found=true || true
                 kubectl delete pvc postgres-storage-postgres-0 -n "$NAMESPACE" --ignore-not-found=true || true
-
+                
                 # Apply PostgreSQL using hostPath (works without EBS CSI issues)
                 echo "Applying PostgreSQL with hostPath..."
                 kubectl apply -f "$CHART_DIR/postgres-hostpath.yaml" --namespace "$NAMESPACE"
-
+                
                 # Wait for PostgreSQL pod to be ready
                 echo "Waiting for PostgreSQL pod to be ready (this may take up to 2 minutes)..."
                 kubectl wait --for=condition=ready pod -l app=postgres -n "$NAMESPACE" --timeout=120s
-
+                
                 # Verify PostgreSQL is running
                 echo "Verifying PostgreSQL status..."
                 kubectl get deployment postgres -n "$NAMESPACE"
                 kubectl get pods -n "$NAMESPACE" -l app=postgres
                 kubectl get svc tunefy-db-rw -n "$NAMESPACE"
-
+                
                 # Initialize database schema if needed
                 echo "Initializing database schema..."
                 POSTGRES_POD=$(kubectl get pods -n "$NAMESPACE" -l app=postgres -o jsonpath='{.items[0].metadata.name}')
                 
                 # Check if tables already exist
                 TABLE_COUNT=$(kubectl exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U tunefy_user -d tunefy -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
-
+                
                 if [ "$TABLE_COUNT" -gt 0 ]; then
                     echo "✓ Database schema already exists ($TABLE_COUNT tables found)"
                 else
@@ -289,7 +291,7 @@ step "deploy-postgresql" {
                     kubectl exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U tunefy_user -d tunefy -f /tmp/database_setup.sql
                     echo "✓ Database schema initialized successfully"
                 fi
-
+                
                 echo "✓ PostgreSQL deployment completed successfully"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
@@ -318,6 +320,7 @@ step "init-postgresql-schema" {
     action {
         action_type = "Octopus.Script"
         environments = ["dev"]
+        is_disabled = true
         is_required = true
         notes = "Create database tables if they don't exist"
         properties = {
@@ -325,55 +328,55 @@ step "init-postgresql-schema" {
             Octopus.Action.AutoRetry.MinimumBackoff = "5"
             Octopus.Action.RunOnServer = "false"
             Octopus.Action.Script.ScriptBody = <<-EOT
-                #!/bin/bash
-                set -euo pipefail
+                                #!/bin/bash
+                                set -euo pipefail
+                                
+                                echo "=== Initializing PostgreSQL Schema ==="
+                                
+                                NAMESPACE="tunefy-dev"
+                                POSTGRES_POD="postgres-0"
+                                
+                                # Wait for PostgreSQL to be ready
+                                echo "Waiting for PostgreSQL pod to be ready..."
+                                kubectl wait --for=condition=ready pod/$POSTGRES_POD -n $NAMESPACE --timeout=120s
+                                
+                                # Create SQL script inside the pod
+                                kubectl exec -n $NAMESPACE $POSTGRES_POD -- bash -c "cat > /tmp/init_schema.sql << 'EOSQL'
+                CREATE TABLE IF NOT EXISTS merged_songs (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    song_name VARCHAR(500) NOT NULL,
+                    artist_name VARCHAR(500) NOT NULL,
+                    popularity INTEGER DEFAULT 0,
+                    votes INTEGER DEFAULT 0,
+                    session_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
                 
-                echo "=== Initializing PostgreSQL Schema ==="
+                CREATE TABLE IF NOT EXISTS top_songs (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    song_name VARCHAR(500) NOT NULL,
+                    artist_name VARCHAR(500) NOT NULL,
+                    popularity INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
                 
-                NAMESPACE="tunefy-dev"
-                POSTGRES_POD="postgres-0"
-                
-                # Wait for PostgreSQL to be ready
-                echo "Waiting for PostgreSQL pod to be ready..."
-                kubectl wait --for=condition=ready pod/$POSTGRES_POD -n $NAMESPACE --timeout=120s
-                
-                # Create SQL script inside the pod
-                kubectl exec -n $NAMESPACE $POSTGRES_POD -- bash -c "cat > /tmp/init_schema.sql << 'EOSQL'
-CREATE TABLE IF NOT EXISTS merged_songs (
-    id SERIAL PRIMARY KEY,
-    user_id VARCHAR(255) NOT NULL,
-    song_name VARCHAR(500) NOT NULL,
-    artist_name VARCHAR(500) NOT NULL,
-    popularity INTEGER DEFAULT 0,
-    votes INTEGER DEFAULT 0,
-    session_id VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS top_songs (
-    id SERIAL PRIMARY KEY,
-    user_id VARCHAR(255) NOT NULL,
-    song_name VARCHAR(500) NOT NULL,
-    artist_name VARCHAR(500) NOT NULL,
-    popularity INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_merged_songs_user_id ON merged_songs(user_id);
-CREATE INDEX IF NOT EXISTS idx_merged_songs_popularity ON merged_songs(popularity);
-CREATE INDEX IF NOT EXISTS idx_merged_songs_votes ON merged_songs(votes);
-CREATE INDEX IF NOT EXISTS idx_merged_songs_session_id ON merged_songs(session_id);
-CREATE INDEX IF NOT EXISTS idx_top_songs_user_id ON top_songs(user_id);
-CREATE INDEX IF NOT EXISTS idx_top_songs_popularity ON top_songs(popularity);
-EOSQL
-"
-                
-                # Execute the SQL script
-                echo "Creating tables and indexes..."
-                kubectl exec -n $NAMESPACE $POSTGRES_POD -- psql -U tunefy_user -d tunefy -f /tmp/init_schema.sql
-                
-                echo "✓ PostgreSQL schema initialized successfully"
+                CREATE INDEX IF NOT EXISTS idx_merged_songs_user_id ON merged_songs(user_id);
+                CREATE INDEX IF NOT EXISTS idx_merged_songs_popularity ON merged_songs(popularity);
+                CREATE INDEX IF NOT EXISTS idx_merged_songs_votes ON merged_songs(votes);
+                CREATE INDEX IF NOT EXISTS idx_merged_songs_session_id ON merged_songs(session_id);
+                CREATE INDEX IF NOT EXISTS idx_top_songs_user_id ON top_songs(user_id);
+                CREATE INDEX IF NOT EXISTS idx_top_songs_popularity ON top_songs(popularity);
+                EOSQL
+                "
+                                
+                                # Execute the SQL script
+                                echo "Creating tables and indexes..."
+                                kubectl exec -n $NAMESPACE $POSTGRES_POD -- psql -U tunefy_user -d tunefy -f /tmp/init_schema.sql
+                                
+                                echo "✓ PostgreSQL schema initialized successfully"
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
