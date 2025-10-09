@@ -216,7 +216,6 @@ step "setup-storage" {
     }
 }
 
-
 step "deploy-postgresql-cloudnativepg" {
     name = "Deploy PostgreSQL CloudNativePG"
     properties = {
@@ -231,10 +230,47 @@ step "deploy-postgresql-cloudnativepg" {
         properties = {
             Octopus.Action.AutoRetry.MaximumCount = "1"
             Octopus.Action.RunOnServer = "false"
-            Octopus.Action.Script.ScriptBody = "kubectl apply -f charts/tunefy-db-cluster.yaml"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+
+                PACKAGE_DIR="#{Octopus.Action.Package[charts].ExtractedPath}"
+                MANIFEST="${PACKAGE_DIR}/tunefy-db-cluster.yaml"
+
+                echo "=== Deploying PostgreSQL CloudNativePG cluster ==="
+                echo "Package directory: ${PACKAGE_DIR}"
+
+                if [ ! -f "$MANIFEST" ]; then
+                    echo "ERROR: CloudNativePG manifest not found at $MANIFEST"
+                    echo "Listing package contents for debugging:"
+                    ls -al "$PACKAGE_DIR"
+                    exit 1
+                fi
+
+                kubectl apply -f "$MANIFEST"
+
+                echo "Waiting for CloudNativePG cluster to report Ready status..."
+                if ! kubectl wait --for=condition=Ready cluster/tunefy-db -n tunefy-dev --timeout=180s; then
+                    echo "Cluster did not reach Ready within timeout; current status:"
+                    kubectl get cluster -n tunefy-dev tunefy-db -o yaml
+                    exit 1
+                fi
+
+                echo "CloudNativePG cluster deployed successfully"
+                EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
             Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+
+        packages "charts" {
+            acquisition_location = "ExecutionTarget"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
         }
     }
 }
