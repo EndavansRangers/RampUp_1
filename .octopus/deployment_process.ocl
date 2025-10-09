@@ -353,19 +353,35 @@ step "smoke-test" {
                 NAMESPACE="tunefy-dev"
                 POD_NAME="smoke-test-$(date +%s)"
                 
-                # Run smoke test using kubectl
+                # Run smoke test using kubectl (without --rm to avoid deletion issues)
                 kubectl run "$POD_NAME" \
                   --namespace="$NAMESPACE" \
                   --restart=Never \
                   --image=curlimages/curl:8.10.1 \
-                  --rm -i \
                   -- curl -sf http://backend:3001/health
                 
-                echo "✓ Smoke test passed!"
-                echo "ColorLive can be set to #{ColorNext}"
+                # Wait for pod to complete
+                echo "Waiting for smoke test to complete..."
+                kubectl wait --for=condition=Ready pod/"$POD_NAME" -n "$NAMESPACE" --timeout=30s || true
+                sleep 2
                 
-                # Set output variable for next step
-                set_octopusvariable "SmokeTestResult" "success"
+                # Get the result
+                RESULT=$(kubectl logs "$POD_NAME" -n "$NAMESPACE" 2>/dev/null || echo "failed")
+                
+                # Clean up the pod (best effort, don't fail if it doesn't work)
+                kubectl delete pod "$POD_NAME" -n "$NAMESPACE" --ignore-not-found=true --wait=false || true
+                
+                # Check if the result contains "healthy"
+                if echo "$RESULT" | grep -q "healthy"; then
+                    echo "✓ Smoke test passed!"
+                    echo "$RESULT"
+                    echo "ColorLive can be set to #{ColorNext}"
+                    set_octopusvariable "SmokeTestResult" "success"
+                else
+                    echo "✗ Smoke test failed!"
+                    echo "$RESULT"
+                    exit 1
+                fi
                 EOT
             Octopus.Action.Script.ScriptSource = "Inline"
             Octopus.Action.Script.Syntax = "Bash"
