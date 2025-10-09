@@ -36,6 +36,8 @@ CREATE INDEX IF NOT EXISTS idx_merged_songs_popularity ON merged_songs(popularit
 CREATE INDEX IF NOT EXISTS idx_merged_songs_votes ON merged_songs(votes);
 CREATE INDEX IF NOT EXISTS idx_merged_songs_song_name ON merged_songs(song_name);
 CREATE INDEX IF NOT EXISTS idx_merged_songs_session_id ON merged_songs(session_id);
+-- Índice compuesto para optimizar consultas de verificación de canciones existentes
+CREATE INDEX IF NOT EXISTS idx_merged_songs_user_song_session ON merged_songs(user_id, song_name, session_id);
 CREATE INDEX IF NOT EXISTS idx_top_songs_user_id ON top_songs(user_id);
 CREATE INDEX IF NOT EXISTS idx_top_songs_popularity ON top_songs(popularity);
 
