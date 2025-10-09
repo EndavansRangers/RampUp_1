@@ -101,6 +101,67 @@ step "upsert-ecr-credentials" {
     }
 }
 
+step "cleanup-resources" {
+    name = "Cleanup Old Resources"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        notes = "Clean up old ReplicaSets and stuck pods to free memory"
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Pre-deployment Health Check ==="
+                NAMESPACE="tunefy-dev"
+                
+                # Check if worker nodes are Ready
+                echo "Checking worker node status..."
+                WORKER_READY=$(kubectl get nodes --no-headers | grep -v "control-plane" | awk '{print $2}' | grep -c "Ready" || echo "0")
+                if [ "$WORKER_READY" -eq 0 ]; then
+                    echo "WARNING: No worker nodes are Ready. Waiting 30 seconds..."
+                    sleep 30
+                fi
+                
+                echo "=== Cleaning up old resources ==="
+                
+                # Delete old ReplicaSets (keep only active ones)
+                echo "Deleting old ReplicaSets..."
+                for rs in $(kubectl get replicaset -n $NAMESPACE --no-headers | awk '$2==0 && $3==0 && $4==0 {print $1}'); do
+                    kubectl delete replicaset $rs -n $NAMESPACE --ignore-not-found=true
+                done
+                
+                # Delete stuck pods (Terminating, Pending with errors, Failed, Error, etc.)
+                echo "Deleting stuck pods..."
+                kubectl delete pod --field-selector status.phase=Failed -n $NAMESPACE --force --grace-period=0 --ignore-not-found=true || true
+                kubectl delete pod --field-selector status.phase=Unknown -n $NAMESPACE --force --grace-period=0 --ignore-not-found=true || true
+                
+                # Delete old smoke test pods
+                kubectl delete pod -n $NAMESPACE -l job-name --field-selector status.phase=Succeeded --ignore-not-found=true || true
+                kubectl delete pod -n $NAMESPACE -l job-name --field-selector status.phase=Failed --ignore-not-found=true || true
+                
+                # Force delete any pods stuck in Terminating for more than 5 minutes
+                echo "Checking for long-running Terminating pods..."
+                kubectl get pods -n $NAMESPACE --field-selector status.phase=Terminating -o json | \
+                  jq -r '.items[] | select(.metadata.deletionTimestamp != null) | select((now - (.metadata.deletionTimestamp | fromdatetime)) > 300) | .metadata.name' | \
+                  xargs -r kubectl delete pod -n $NAMESPACE --force --grace-period=0 --ignore-not-found=true || true
+                
+                echo "✓ Cleanup completed"
+                sleep 5
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+    }
+}
+
 step "setup-storage" {
     name = "Setup Storage Class"
     properties = {
