@@ -34,12 +34,13 @@ if helm list -n "$NAMESPACE" -a 2>/dev/null | grep "$RELEASE_NAME" | grep -q "pe
 fi
 
 # Deploy using Helm with atomic flag (auto-rollback on failure)
+# Increased timeout to 12m for new AWS account (first image pull takes longer)
 helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
   --namespace "$NAMESPACE" \
   --create-namespace \
   --set image.tag="$IMAGE_TAG" \
   --values "$CHART_DIR/values-dev.yaml" \
-  --timeout 10m \
+  --timeout 12m \
   --wait \
   --atomic
 

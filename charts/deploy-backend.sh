@@ -36,7 +36,7 @@ if helm list -n "$NAMESPACE" -a 2>/dev/null | grep "$RELEASE_NAME" | grep -q "pe
 fi
 
 # Deploy using Helm with atomic flag (auto-rollback on failure)
-# Increased timeout to 5m for t3.small instances
+# Increased timeout to 8m for new AWS account (first image pull takes longer)
 helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
   --namespace "$NAMESPACE" \
   --create-namespace \
@@ -44,7 +44,7 @@ helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
   --set color="$COLOR_NEXT" \
   --set service.selector.colorLive="$COLOR_NEXT" \
   --values "$CHART_DIR/values-dev.yaml" \
-  --timeout 5m \
+  --timeout 8m \
   --wait \
   --atomic
 
