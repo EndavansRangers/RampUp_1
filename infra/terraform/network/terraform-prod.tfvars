@@ -8,7 +8,7 @@ region    = "us-east-1"
 env       = "prod"
 
 # Availability Zones
-azs       = ["us-east-1a", "us-east-1b"]
+azs       = ["us-east-1a", "us-east-1b", "us-east-1c"]
 
 # VPC CIDR (different from dev to avoid conflicts)
 vpc_cidr  = "10.30.0.0/16"
