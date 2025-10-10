@@ -49,6 +49,8 @@ resource "aws_s3_bucket_lifecycle_configuration" "postgresql_backups" {
     id     = "delete-old-backups"
     status = "Enabled"
 
+    filter {}
+
     expiration {
       days = 30
     }

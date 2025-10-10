@@ -6,14 +6,15 @@ resource "aws_route53_zone" "root" {
 }
 
 # If we create a private zone
-data "aws_route53_zone" "root" {
-  count        = var.create_zone ? 0 : 1
-  name         = var.root_domain
-  private_zone = false
-}
+# Commented out: Only needed if you have an existing zone
+# data "aws_route53_zone" "root" {
+#   count        = var.create_zone ? 0 : 1
+#   name         = var.root_domain
+#   private_zone = false
+# }
 
 locals {
-  zone_id = var.create_zone ? aws_route53_zone.root[0].zone_id : data.aws_route53_zone.root[0].zone_id
+  zone_id = var.create_zone ? aws_route53_zone.root[0].zone_id : null
 }
 
 output "route53_zone_id" {
