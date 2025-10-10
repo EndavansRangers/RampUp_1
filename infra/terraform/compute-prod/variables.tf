@@ -74,3 +74,33 @@ variable "tags" {
   default     = {}
   description = "Additional tags for resources"
 }
+
+# Octopus Tentacle variables
+variable "tentacle_instance_type" {
+  type        = string
+  default     = "c7i-flex.large"
+  description = "Octopus Tentacle instance type for CD worker"
+}
+
+variable "octopus_server_url" {
+  type        = string
+  description = "URL of Octopus Deploy server in Dev account (e.g., https://octopus.example.com)"
+}
+
+variable "octopus_api_key" {
+  type        = string
+  sensitive   = true
+  description = "API key for Octopus Deploy registration"
+}
+
+variable "octopus_space" {
+  type        = string
+  default     = "Default"
+  description = "Octopus Deploy space name"
+}
+
+variable "dev_vpc_cidr" {
+  type        = string
+  default     = "10.20.0.0/16"
+  description = "CIDR block of Dev VPC for VPC Peering connectivity"
+}

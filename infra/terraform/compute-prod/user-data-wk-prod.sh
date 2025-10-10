@@ -74,7 +74,8 @@ EOF
 sysctl --system
 
 # Set hostname
-INSTANCE_ID=$(ec2-metadata --instance-id | cut -d " " -f 2)
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+INSTANCE_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/instance-id)
 hostnamectl set-hostname $CLUSTER_NAME-wk-$INSTANCE_ID
 echo "🏷️  Hostname set to: $CLUSTER_NAME-wk-$INSTANCE_ID"
 

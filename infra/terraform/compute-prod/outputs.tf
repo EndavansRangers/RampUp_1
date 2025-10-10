@@ -92,3 +92,70 @@ output "next_steps" {
   EOT
   description = "Next steps after Terraform apply"
 }
+
+# ============================================
+# Octopus Tentacle Outputs
+# ============================================
+
+output "octopus_tentacle_private_ip" {
+  value       = aws_instance.octopus_tentacle.private_ip
+  description = "Private IP of Octopus Tentacle worker"
+}
+
+output "octopus_tentacle_instance_id" {
+  value       = aws_instance.octopus_tentacle.id
+  description = "Instance ID of Octopus Tentacle worker"
+}
+
+output "ecr_push_role_arn" {
+  value       = aws_iam_role.ecr_push_from_dev.arn
+  description = "ARN of IAM role for TeamCity (Dev) to assume for ECR push"
+}
+
+output "ecr_push_external_id" {
+  value       = "teamcity-tunefy-prod"
+  description = "External ID for assuming ECR push role from Dev account"
+}
+
+output "octopus_setup_notes" {
+  value = <<-EOT
+    
+    ╔═══════════════════════════════════════════════════════════════╗
+    ║  Octopus Tentacle & Cross-Account CI/CD Setup                 ║
+    ╚═══════════════════════════════════════════════════════════════╝
+    
+    🤖 Tentacle Worker:
+       - Private IP: ${aws_instance.octopus_tentacle.private_ip}
+       - Instance ID: ${aws_instance.octopus_tentacle.id}
+       - SSH: ssh -J ubuntu@${aws_instance.bastion.public_ip} ubuntu@${aws_instance.octopus_tentacle.private_ip}
+    
+    🔑 TeamCity ECR Push (from Dev account 315251037468):
+       - Role ARN: ${aws_iam_role.ecr_push_from_dev.arn}
+       - External ID: teamcity-tunefy-prod
+       - Configure in TeamCity:
+         * Add AWS connection with assume-role
+         * Use role ARN above with external ID
+         * Push to: 038686090046.dkr.ecr.us-east-1.amazonaws.com
+    
+    🐙 Octopus Configuration (Dev account):
+       1. Verify Tentacle registered in Infrastructure > Workers
+       2. Create Environment: "Production"
+       3. Add Kubernetes target:
+          - Type: Kubernetes Cluster
+          - URL: https://${aws_lb.cp.dns_name}:6443
+          - Authentication: Via worker (Tentacle will use kubeconfig)
+       4. Create Projects:
+          - tunefy-frontend-prod (auto-deploy on image push)
+          - tunefy-backend-prod (manual approval required)
+    
+    📋 Next Steps:
+       1. SSH to Tentacle and run: /home/ubuntu/setup-kubeconfig.sh
+       2. Verify Tentacle in Octopus UI (should auto-register)
+       3. Configure TeamCity with ECR push role
+       4. Create Octopus projects for deployments
+       5. Test deployment pipeline
+    
+  EOT
+  description = "Setup instructions for Octopus Tentacle and cross-account CI/CD"
+}
+

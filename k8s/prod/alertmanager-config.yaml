@@ -7,7 +7,7 @@ data:
   alertmanager.yml: |
     global:
       resolve_timeout: 5m
-    
+
     route:
       group_by: ['alertname', 'cluster', 'service', 'namespace']
       group_wait: 10s
@@ -22,13 +22,13 @@ data:
         - match:
             severity: warning
           receiver: 'slack-prod'
-    
+
     receivers:
       - name: 'slack-prod'
         slack_configs:
-          - api_url: '{{ .SlackWebhookURL }}'  # Replace with actual webhook
+          - api_url: ${SLACK_ALERTS_WEBHOOK}
             channel: '#tunefy-prod-alerts'
-            title: '🔔 Tunefy Production Alert'
+            title: 'Tunefy Production Alert'
             text: |
               *Alert:* {{ .GroupLabels.alertname }}
               *Severity:* {{ .GroupLabels.severity }}
@@ -38,12 +38,12 @@ data:
               *Description:* {{ .Annotations.description }}
               {{ end }}
             send_resolved: true
-      
+
       - name: 'slack-critical'
         slack_configs:
-          - api_url: '{{ .SlackWebhookURL }}'  # Replace with actual webhook
+          - api_url: ${SLACK_CRITICAL_WEBHOOK}
             channel: '#tunefy-prod-critical'
-            title: '🚨 CRITICAL - Tunefy Production'
+            title: 'CRITICAL - Tunefy Production'
             text: |
               @channel
               *CRITICAL ALERT*
@@ -54,6 +54,3 @@ data:
               *Description:* {{ .Annotations.description }}
               {{ end }}
             send_resolved: true
-
-
-

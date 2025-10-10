@@ -43,6 +43,30 @@ bastion_instance_type = "t3.micro"
 # Run: cd ../platform && terraform output
 nodes_instance_profile_name = "tunefy-prod-nodes"
 
+# ============================================
+# CI/CD Cross-Account Configuration
+# ============================================
+
+# Octopus Tentacle Instance Type
+tentacle_instance_type = "c7i-flex.large"  # CD Worker: 2 vCPU / 4GB RAM
+
+# ⚠️ OCTOPUS CONFIGURATION - REQUIRED
+# Get these values from your Octopus Deploy server in Dev account (638325785916)
+
+# Octopus Server URL - IMPORTANT: Use port 8080 (API port), NOT 10943
+# Port 8080: Octopus Web UI and API
+# Port 10943: Octopus Tentacle polling communication (configured separately)
+# Example: http://10.20.63.199:8080 (private IP) or https://octopus.example.com
+octopus_server_url = "http://10.20.63.199:8080"
+
+# Octopus API Key
+# Create in Octopus UI: Profile > My API Keys > New API Key
+# Needs permissions: EnvironmentView, MachineCreate, WorkerCreate
+octopus_api_key = "API-XXXXXXXXXXXXXXXXXXXXXXXX"  # ⚠️ Keep this secret!
+
+# Octopus Space (typically "Default" unless you have multiple spaces)
+octopus_space = "Default"
+
 # Additional tags
 tags = {
   Owner       = "DevOps"
@@ -51,3 +75,4 @@ tags = {
   Project     = "Tunefy"
   CostCenter  = "Engineering"
 }
+

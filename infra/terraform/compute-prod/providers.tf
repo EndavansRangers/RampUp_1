@@ -9,10 +9,9 @@ terraform {
   }
   
   backend "s3" {
-    bucket         = "tunefy-david-cifuentes-tf-state"
+    bucket         = "tunefy-tf-state-038686090046"
     key            = "compute-prod/terraform.tfstate"
     region         = "us-east-1"
-    dynamodb_table = "tunefy-tf-locks"
     encrypt        = true
   }
 }

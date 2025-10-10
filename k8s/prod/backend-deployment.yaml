@@ -1,0 +1,143 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secrets
+  namespace: tunefy-app
+type: Opaque
+stringData:
+  # Estas credenciales deben ser actualizadas con valores reales
+  SPOTIFY_CLIENT_ID: "YOUR_SPOTIFY_CLIENT_ID"
+  SPOTIFY_CLIENT_SECRET: "YOUR_SPOTIFY_CLIENT_SECRET"
+  SESSION_SECRET: "TunefySessionSecret2025-ChangeThis"
+  # PostgreSQL connection (usando el servicio de CloudNativePG)
+  MONGODB_URI: "postgresql://tunefy_user:TunefyProd2025!@tunefy-db-rw.tunefy-prod.svc.cluster.local:5432/tunefy"
+  AI21_API_KEY: "YOUR_AI21_API_KEY"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: tunefy-app
+data:
+  NODE_ENV: "production"
+  PORT: "3001"
+  # Frontend URL para CORS
+  FRONTEND_URL: "http://tunefy-prod.example.com"
+  # Spotify redirect URI
+  SPOTIFY_REDIRECT_URI: "http://tunefy-prod.example.com/api/callback"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tunefy-backend
+  namespace: tunefy-app
+  labels:
+    app: tunefy-backend
+    tier: backend
+    env: prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: tunefy-backend
+  template:
+    metadata:
+      labels:
+        app: tunefy-backend
+        tier: backend
+        env: prod
+    spec:
+      containers:
+      - name: backend
+        image: 038686090046.dkr.ecr.us-east-1.amazonaws.com/tunefy-backend-prod:latest
+        ports:
+        - containerPort: 3001
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: NODE_ENV
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: PORT
+        - name: FRONTEND_URL
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: FRONTEND_URL
+        - name: SPOTIFY_REDIRECT_URI
+          valueFrom:
+            configMapKeyRef:
+              name: backend-config
+              key: SPOTIFY_REDIRECT_URI
+        - name: SPOTIFY_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: SPOTIFY_CLIENT_ID
+        - name: SPOTIFY_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: SPOTIFY_CLIENT_SECRET
+        - name: SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: SESSION_SECRET
+        - name: MONGODB_URI
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: MONGODB_URI
+        - name: AI21_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backend-secrets
+              key: AI21_API_KEY
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3001
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tunefy-backend
+  namespace: tunefy-app
+  labels:
+    app: tunefy-backend
+    tier: backend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 3001
+    targetPort: 3001
+    protocol: TCP
+    name: http
+  selector:
+    app: tunefy-backend
