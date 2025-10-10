@@ -19,6 +19,34 @@ resource "aws_iam_role_policy_attachment" "ssm" {
   role       = aws_iam_role.nodes.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
+
+# SSM Parameter Store access for K8s join command
+data "aws_iam_policy_document" "ssm_k8s_join" {
+  statement {
+    effect = "Allow"
+    actions = [
+      "ssm:PutParameter",
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:DeleteParameter"
+    ]
+    resources = [
+      "arn:aws:ssm:*:*:parameter/tunefy/${var.env}/k8s/*"
+    ]
+  }
+}
+
+resource "aws_iam_policy" "ssm_k8s_join" {
+  name        = "${local.name}-ssm-k8s-join"
+  description = "Allow nodes to read/write K8s join command in SSM Parameter Store"
+  policy      = data.aws_iam_policy_document.ssm_k8s_join.json
+  tags        = merge(local.common_tags, { Name = "${local.name}-ssm-k8s-join" })
+}
+
+resource "aws_iam_role_policy_attachment" "nodes_ssm_k8s_join" {
+  role       = aws_iam_role.nodes.name
+  policy_arn = aws_iam_policy.ssm_k8s_join.arn
+}
 resource "aws_iam_role_policy_attachment" "ecr_power" {
   role       = aws_iam_role.nodes.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser"

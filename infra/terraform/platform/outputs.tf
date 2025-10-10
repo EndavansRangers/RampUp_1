@@ -9,3 +9,11 @@ output "nodes_instance_profile_name" {
 output "nodes_role_arn" {
   value = aws_iam_role.nodes.arn
 }
+
+output "s3_postgresql_backups_bucket" {
+  value = aws_s3_bucket.postgresql_backups.id
+}
+
+output "s3_postgresql_backups_arn" {
+  value = aws_s3_bucket.postgresql_backups.arn
+}

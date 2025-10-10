@@ -1,0 +1,124 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: tunefy-prod-alerts
+  namespace: monitoring
+  labels:
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+    - name: tunefy-prod-app
+      interval: 30s
+      rules:
+        - alert: PodCrashLooping
+          expr: rate(kube_pod_container_status_restarts_total{namespace="tunefy-prod"}[5m]) > 0
+          for: 5m
+          labels:
+            severity: critical
+            namespace: tunefy-prod
+          annotations:
+            summary: "Pod {{ $labels.pod }} is crash looping"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has restarted {{ $value }} times in the last 5 minutes"
+        
+        - alert: HighMemoryUsage
+          expr: |
+            (container_memory_working_set_bytes{namespace="tunefy-prod"} 
+            / container_spec_memory_limit_bytes{namespace="tunefy-prod"}) > 0.9
+          for: 5m
+          labels:
+            severity: warning
+            namespace: tunefy-prod
+          annotations:
+            summary: "High memory usage in {{ $labels.pod }}"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is using {{ $value | humanizePercentage }} of its memory limit"
+        
+        - alert: HighCPUUsage
+          expr: |
+            (rate(container_cpu_usage_seconds_total{namespace="tunefy-prod"}[5m]) 
+            / container_spec_cpu_quota{namespace="tunefy-prod"} * 100000) > 80
+          for: 5m
+          labels:
+            severity: warning
+            namespace: tunefy-prod
+          annotations:
+            summary: "High CPU usage in {{ $labels.pod }}"
+            description: "Container {{ $labels.container }} in pod {{ $labels.pod }} is using {{ $value }}% of its CPU limit"
+        
+        - alert: PostgreSQLDown
+          expr: pg_up{namespace="tunefy-prod"} == 0
+          for: 1m
+          labels:
+            severity: critical
+            namespace: tunefy-prod
+          annotations:
+            summary: "PostgreSQL cluster is down"
+            description: "PostgreSQL cluster {{ $labels.cluster }} in namespace tunefy-prod is not responding"
+        
+        - alert: DeploymentReplicasMismatch
+          expr: |
+            kube_deployment_spec_replicas{namespace="tunefy-prod"} 
+            != kube_deployment_status_replicas_available{namespace="tunefy-prod"}
+          for: 10m
+          labels:
+            severity: warning
+            namespace: tunefy-prod
+          annotations:
+            summary: "Deployment {{ $labels.deployment }} has mismatched replicas"
+            description: "Deployment {{ $labels.deployment }} has {{ $value }} replicas available, but {{ $labels.spec_replicas }} are expected"
+        
+        - alert: PodNotReady
+          expr: |
+            sum by (namespace, pod) (
+              kube_pod_status_phase{namespace="tunefy-prod", phase!~"Running|Succeeded"}
+            ) > 0
+          for: 10m
+          labels:
+            severity: warning
+            namespace: tunefy-prod
+          annotations:
+            summary: "Pod {{ $labels.pod }} not ready"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been in a non-ready state for more than 10 minutes"
+    
+    - name: tunefy-prod-infra
+      interval: 1m
+      rules:
+        - alert: NodeNotReady
+          expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Node {{ $labels.node }} is not ready"
+            description: "Node {{ $labels.node }} has been in NotReady state for more than 5 minutes"
+        
+        - alert: NodeHighMemoryPressure
+          expr: kube_node_status_condition{condition="MemoryPressure",status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} has memory pressure"
+            description: "Node {{ $labels.node }} is experiencing memory pressure"
+        
+        - alert: NodeHighDiskPressure
+          expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} has disk pressure"
+            description: "Node {{ $labels.node }} is experiencing disk pressure"
+        
+        - alert: PersistentVolumeFillingUp
+          expr: |
+            (kubelet_volume_stats_used_bytes / kubelet_volume_stats_capacity_bytes) > 0.8
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PVC {{ $labels.persistentvolumeclaim }} is filling up"
+            description: "PVC {{ $labels.persistentvolumeclaim }} in namespace {{ $labels.namespace }} is {{ $value | humanizePercentage }} full"
+
+
+

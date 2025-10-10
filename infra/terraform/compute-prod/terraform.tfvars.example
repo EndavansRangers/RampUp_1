@@ -1,45 +1,53 @@
-# Example terraform.tfvars for Production environment
+# ============================================
+# Tunefy Production Compute Configuration
+# For NEW AWS Account (Free Tier)
+# ============================================
 # Copy this file to terraform.tfvars and fill with your values
 
 project = "tunefy"
 region  = "us-east-1"
 env     = "prod"
 
-# VPC and Subnets (from network module)
-vpc_id = "vpc-xxxxxxxxx"
+# VPC and Subnets (from network module outputs)
+# Run: cd ../network && terraform output
+vpc_id = "vpc-xxxxxxxxx"  # Replace with actual VPC ID
 
 public_subnet_ids = [
-  "subnet-xxxxxxxxx", # us-east-1a
-  "subnet-yyyyyyyyy", # us-east-1b
-  "subnet-zzzzzzzzz"  # us-east-1c
+  "subnet-xxxxxxxxx",  # us-east-1a
+  "subnet-yyyyyyyyy"   # us-east-1b
 ]
 
 private_subnet_ids = [
-  "subnet-aaaaaaaaa", # us-east-1a
-  "subnet-bbbbbbbbb", # us-east-1b
-  "subnet-ccccccccc"  # us-east-1c
+  "subnet-aaaaaaaaa",  # us-east-1a
+  "subnet-bbbbbbbbb"   # us-east-1b
 ]
 
-# SSH Key
-key_name = "your-key-pair-name"
+# SSH Key (create this first in AWS Console or via CLI)
+key_name = "tunefy-prod-key"
 
 # Security - Your public IP for SSH access
+# Find your IP: curl ifconfig.me
 allowed_ssh_cidr = "YOUR.PUBLIC.IP.HERE/32"
 
 # Kubernetes
 cluster_name = "tunefy-prod"
 
-# Instance Types (Free Tier optimized)
-cp_instance_type      = "t3.small"  # Control planes need more RAM for etcd
-wk_instance_type      = "t3.micro"  # Workers on Free Tier
+# Instance Types (Production)
+# c7i-flex.large: 2 vCPU, 4GB RAM (both CP and Workers)
+# t3.micro: Bastion (minimal resources needed)
+cp_instance_type      = "c7i-flex.large"
+wk_instance_type      = "c7i-flex.large"
 bastion_instance_type = "t3.micro"
 
-# IAM (from platform module)
-nodes_instance_profile_name = "tunefy-prod-nodes-instance-profile"
+# IAM (from platform module outputs)
+# Run: cd ../platform && terraform output
+nodes_instance_profile_name = "tunefy-prod-nodes"
 
 # Additional tags
 tags = {
-  Team        = "DevOps"
+  Owner       = "DevOps"
+  Environment = "Production"
+  ManagedBy   = "Terraform"
+  Project     = "Tunefy"
   CostCenter  = "Engineering"
-  Compliance  = "GDPR"
 }
