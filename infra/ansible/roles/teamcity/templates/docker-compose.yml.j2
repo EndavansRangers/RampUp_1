@@ -8,7 +8,10 @@ services:
       - {{ teamcity_dir }}/data:/data/teamcity_server/datadir
       - {{ teamcity_dir }}/logs:/opt/teamcity/logs
   agent:
-    image: {{ teamcity_images.agent }}
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    image: teamcity-agent-with-aws:latest
     restart: always
     environment:
       - SERVER_URL=http://teamcity:8111
