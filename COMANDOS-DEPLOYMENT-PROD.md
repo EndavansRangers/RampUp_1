@@ -664,15 +664,15 @@ kubectl get prometheusrule -n monitoring
 ### Paso 3: Configurar Alertmanager (Slack)
 
 ```bash
-# Si tienes webhook de Slack
-SLACK_WEBHOOK="https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
+# Define tus webhooks (pueden ser iguales si usas un solo canal)
+export SLACK_ALERTS_WEBHOOK="https://hooks.slack.com/services/YOUR/ALERTS/WEBHOOK"
+export SLACK_CRITICAL_WEBHOOK="https://hooks.slack.com/services/YOUR/CRITICAL/WEBHOOK"
 
-kubectl create secret generic alertmanager-slack \
-  --from-literal=webhook-url="$SLACK_WEBHOOK" \
-  --namespace=monitoring
+# Aplicar configuración (inyecta los valores usando envsubst)
+envsubst < k8s/prod/alertmanager-config.yaml | kubectl apply -f -
 
-# Aplicar configuración
-kubectl apply -f k8s/prod/alertmanager-config.yaml
+# (Opcional) limpiar variables de entorno
+unset SLACK_ALERTS_WEBHOOK SLACK_CRITICAL_WEBHOOK
 ```
 
 ### Paso 4: Acceder a Grafana

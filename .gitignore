@@ -21,3 +21,17 @@ TROUBLESHOOTING_RESUMEN.txt
 docs/
 
 infra/terraform/set-aws-creds.sh
+
+
+
+tunefy-main/client-cert.pem
+tunefy-main/k8s-client-cert.pfx
+tunefy-main/client-key.pem
+
+tunefy-main/infra/tunefy-dev-key.pem
+setup-kubeconfig-tentacle.sh
+infra/tunefy-dev-key.pem
+test-postgresql-deployment.sh
+k8s-client-cert.pfx
+client-key.pem
+client-cert.pem
