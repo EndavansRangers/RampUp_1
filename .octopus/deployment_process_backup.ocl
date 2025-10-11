@@ -1,0 +1,304 @@
+step "setup-kubeconfig" {
+    name = "Setup Kubeconfig"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "Setting up kubeconfig for Kubernetes access..."
+                
+                # Create kubeconfig directory
+                mkdir -p ~/.kube
+                
+                # Create kubeconfig file for the cluster
+                cat > ~/.kube/config << 'KUBECONFIG_EOF'
+                apiVersion: v1
+                kind: Config
+                clusters:
+                - cluster:
+                    insecure-skip-tls-verify: true
+                    server: https://tunefy-dev-cp-nlb-c77324b383d150a0.elb.us-east-1.amazonaws.com
+                  name: tunefy-dev
+                contexts:
+                - context:
+                    cluster: tunefy-dev
+                    user: admin
+                    namespace: tunefy-dev
+                  name: tunefy-dev
+                current-context: tunefy-dev
+                users:
+                - name: admin
+                  user:
+                    token: "#{Kubernetes.Token}"
+                KUBECONFIG_EOF
+                
+                chmod 600 ~/.kube/config
+                echo "Kubeconfig created successfully"
+                
+                # Test connection using kubectl container
+                docker run --rm --network host \
+                  -v ~/.kube:/root/.kube \
+                  bitnami/kubectl:1.28 \
+                  version --short || echo "kubectl connection test - will verify in next steps"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.RunOnServer = "true"
+        }
+    }
+}
+
+step "upsert-ecr-credentials" {
+    name = "Upsert ECR Credentials"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "Upserting ECR pull secret..."
+                
+                # Get AWS credentials from IAM Role (Octopus runs on EC2 with IAM profile)
+                ACCOUNT_ID="365074502389"
+                REGION="us-east-1"
+                NAMESPACE="tunefy-dev"
+                
+                # Get ECR login token using AWS CLI container
+                TOKEN=$(docker run --rm --network host \
+                  -e AWS_DEFAULT_REGION="$REGION" \
+                  amazon/aws-cli:2.15.10 \
+                  ecr get-login-password --region "$REGION")
+                
+                # Create or update secret using kubectl container
+                docker run --rm --network host \
+                  -v ~/.kube:/root/.kube \
+                  bitnami/kubectl:1.28 \
+                  create secret docker-registry ecr-creds \
+                  --docker-server=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com \
+                  --docker-username=AWS \
+                  --docker-password="$TOKEN" \
+                  --namespace=$NAMESPACE \
+                  --dry-run=client -o yaml > /tmp/ecr-secret.yaml
+                
+                docker run --rm --network host \
+                  -v ~/.kube:/root/.kube \
+                  -v /tmp:/tmp \
+                  bitnami/kubectl:1.28 \
+                  apply -f /tmp/ecr-secret.yaml
+                
+                echo "ECR credentials updated in namespace $NAMESPACE"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.RunOnServer = "true"
+        }
+    }
+}
+
+step "deploy-helm-frontend" {
+    name = "Deploy Helm (Frontend)"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "3"
+            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.FeedId = "octopus-server-built-in"
+            Octopus.Action.Package.PackageId = "charts"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "Deploying Frontend Helm chart..."
+                
+                RELEASE_NAME="tunefy-frontend"
+                NAMESPACE="tunefy-dev"
+                CHART_DIR="charts/frontend"
+                IMAGE_TAG="#{Octopus.Release.Number}"
+                
+                # Deploy using Helm container
+                docker run --rm --network host \
+                  -v ~/.kube:/root/.kube \
+                  -v "$PWD:/workdir" \
+                  -w /workdir \
+                  alpine/helm:3.13.1 \
+                  upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
+                  --namespace "$NAMESPACE" \
+                  --set image.tag="$IMAGE_TAG" \
+                  --values "$CHART_DIR/values-dev.yaml" \
+                  --atomic \
+                  --timeout 5m \
+                  --wait
+                
+                echo "Frontend deployed successfully"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+
+        packages {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                SelectionMode = "immediate"
+                Extract = "True"
+            }
+        }
+    }
+}
+
+step "deploy-helm-backend-colornext" {
+    name = "Deploy Helm (Backend ColorNext)"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "15"
+            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.FeedId = "octopus-server-built-in"
+            Octopus.Action.Package.PackageId = "charts"
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "Deploying Backend Helm chart (ColorNext: #{ColorNext})..."
+                
+                RELEASE_NAME="tunefy-backend"
+                NAMESPACE="tunefy-dev"
+                CHART_DIR="charts/backend"
+                IMAGE_TAG="#{Octopus.Release.Number}"
+                COLOR_NEXT="#{ColorNext}"
+                
+                # Deploy using Helm container
+                docker run --rm --network host \
+                  -v ~/.kube:/root/.kube \
+                  -v "$PWD:/workdir" \
+                  -w /workdir \
+                  alpine/helm:3.13.1 \
+                  upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
+                  --namespace "$NAMESPACE" \
+                  --set image.tag="$IMAGE_TAG" \
+                  --set color="$COLOR_NEXT" \
+                  --set service.selector.colorLive="$COLOR_NEXT" \
+                  --values "$CHART_DIR/values-dev.yaml" \
+                  --atomic \
+                  --timeout 5m \
+                  --wait
+                
+                echo "Backend deployed successfully with color: $COLOR_NEXT"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+        }
+
+        packages {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                SelectionMode = "immediate"
+                Extract = "True"
+            }
+        }
+    }
+}
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                SelectionMode = "immediate"
+                Extract = "True"
+            }
+        }
+    }
+}
+
+step "smoke-test" {
+    name = "Smoke test"
+    properties = {
+        Octopus.Action.TargetRoles = "dev,k8s"
+    }
+
+    action {
+        action_type = "Octopus.KubernetesRunScript"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "15"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "Running smoke test on backend service..."
+                echo "Testing ColorNext: #{ColorNext}"
+                
+                # Probar el backend en el Service interno (service apunta a ColorNext)
+                kubectl -n tunefy-dev run smoke-test-#{Octopus.Release.Number | Replace "[^a-z0-9-]" "-" | ToLower} \
+                  --restart=Never \
+                  --image=curlimages/curl:8.10.1 \
+                  --rm -i \
+                  -- curl -sf http://backend:3001/health
+                
+                echo "Smoke test passed!"
+                echo "Setting ColorLive to #{ColorNext}"
+                
+                # Set output variable for next step
+                set_octopusvariable "SmokeTestResult" "success"
+                
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            OctopusUseBundledTooling = "False"
+        }
+    }
+}
+
+step "update-colorlive" {
+    name = "Update ColorLive"
+    properties = {
+        Octopus.Action.TargetRoles = "dev,k8s"
+    }
+    condition = "Success"
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.RunOnServer = "true"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                # Update the ColorLive project variable
+                Write-Host "Smoke test passed - Updating ColorLive"
+                Write-Host "Previous ColorLive: #{ColorLive}"
+                Write-Host "New ColorLive: #{ColorNext}"
+                
+                # This will be reflected in the next deployment
+                Set-OctopusVariable -name "ColorLive" -value "#{ColorNext}"
+                
+                Write-Host "ColorLive updated successfully"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+            OctopusUseBundledTooling = "False"
+        }
+    }
+}

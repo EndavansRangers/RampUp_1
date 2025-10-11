@@ -1,0 +1,169 @@
+# kube-prometheus-stack values for DEV environment
+# Optimized for t3.small instances with modest resource requirements
+
+# --- Prometheus ---
+prometheus:
+  service:
+    type: ClusterIP
+  prometheusSpec:
+    retention: 2d
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+    # Recoger TODOS los ServiceMonitors/PodMonitors
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+
+# --- Alertmanager ---
+alertmanager:
+  service:
+    type: ClusterIP
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+  # Config mínima. Luego se reemplaza con receptores reales (email/Slack)
+  config:
+    global:
+      resolve_timeout: 5m
+    route:
+      receiver: "dev-null"
+      group_by: ["alertname","namespace"]
+      group_wait: 30s
+      group_interval: 2m
+      repeat_interval: 2h
+    receivers:
+    - name: "dev-null"
+
+# --- Node exporter / kube-state-metrics: modestos ---
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+
+# --- Grafana ---
+grafana:
+  adminPassword: "admin"  # TODO: cambiar a secret en producción
+  service:
+    type: NodePort  # Para compatibilidad con target-type=instance
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 256Mi
+  
+  # Fix chart bug: Alertmanager datasource also has isDefault=true by default
+  # We override it here to ensure only Prometheus is default
+  additionalDataSources:
+  - name: "Alertmanager"
+    type: alertmanager
+    uid: alertmanager
+    url: http://mon-kube-prometheus-stack-alertmanager.monitoring:9093/
+    access: proxy
+    isDefault: false  # CRITICAL: Only Prometheus should be default
+    jsonData:
+      handleGrafanaManagedAlerts: false
+      implementation: prometheus
+  
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: instance
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:638325785916:certificate/f23f96ea-972e-4d98-8ed3-a20b21836380
+      alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    hosts:
+      - grafana.dev.tunefy.site
+    path: /
+
+# --- Alertas custom para Tunefy ---
+additionalPrometheusRulesMap:
+  tunefy-alerts:
+    groups:
+      - name: tunefy-application
+        interval: 30s
+        rules:
+          - alert: TunefyBackendDown
+            expr: up{job="tunefy-backend"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              component: backend
+            annotations:
+              summary: "Tunefy backend is down in namespace {{ $labels.namespace }}"
+              description: "Backend service has been down for more than 2 minutes"
+          
+          - alert: TunefyFrontendDown
+            expr: up{job="tunefy-frontend"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              component: frontend
+            annotations:
+              summary: "Tunefy frontend is down in namespace {{ $labels.namespace }}"
+              description: "Frontend service has been down for more than 2 minutes"
+          
+          - alert: PostgreSQLDown
+            expr: up{job="postgresql"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              component: database
+            annotations:
+              summary: "PostgreSQL database is down in namespace {{ $labels.namespace }}"
+              description: "Database has been down for more than 2 minutes"
+          
+          - alert: HighPodRestarts
+            expr: rate(kube_pod_container_status_restarts_total{namespace="tunefy-dev"}[15m]) > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High pod restart rate in {{ $labels.namespace }}"
+              description: "Pod {{ $labels.pod }} is restarting frequently"
+          
+          - alert: HighMemoryUsage
+            expr: |
+              (sum(container_memory_working_set_bytes{namespace="tunefy-dev", container!=""}) 
+              / sum(kube_pod_container_resource_limits{namespace="tunefy-dev", resource="memory"})) * 100 > 85
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage in tunefy-dev namespace"
+              description: "Memory usage is above 85%"
+          
+          - alert: HighCPUUsage
+            expr: |
+              (sum(rate(container_cpu_usage_seconds_total{namespace="tunefy-dev", container!=""}[5m])) 
+              / sum(kube_pod_container_resource_limits{namespace="tunefy-dev", resource="cpu"})) * 100 > 80
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage in tunefy-dev namespace"
+              description: "CPU usage is above 80%"

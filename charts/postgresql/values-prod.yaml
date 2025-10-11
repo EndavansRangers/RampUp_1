@@ -1,0 +1,109 @@
+# PostgreSQL Production Configuration
+# Tunefy Database - Production Environment
+
+# Image configuration
+image:
+  repository: postgres
+  tag: "15-alpine"
+  pullPolicy: IfNotPresent
+
+# Replica count (single instance, but with persistence)
+replicaCount: 1
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 5432
+
+# Resource limits
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "100m"
+  limits:
+    memory: "512Mi"
+    cpu: "500m"
+
+# Node affinity - prefer backend node (same as backend pods)
+nodeSelector:
+  workload: app-backend
+
+# Persistence configuration
+persistence:
+  enabled: true
+  storageClass: "gp3"
+  size: 10Gi
+  mountPath: /var/lib/postgresql/data
+
+# PostgreSQL configuration
+postgresqlDatabase: tunefy
+postgresqlUsername: tunefy
+postgresqlPassword: "" # Will be set from secret
+
+# Use secret for credentials
+existingSecret: "backend-db"
+existingSecretPasswordKey: "password"
+
+# PostgreSQL configuration file
+postgresqlConfiguration:
+  max_connections: "100"
+  shared_buffers: "128MB"
+  effective_cache_size: "256MB"
+  maintenance_work_mem: "64MB"
+  checkpoint_completion_target: "0.9"
+  wal_buffers: "4MB"
+  default_statistics_target: "100"
+  random_page_cost: "1.1"
+  effective_io_concurrency: "200"
+  work_mem: "2621kB"
+  min_wal_size: "1GB"
+  max_wal_size: "4GB"
+
+# Health checks
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - pg_isready -U tunefy -d tunefy
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+  exec:
+    command:
+      - /bin/sh
+      - -c
+      - pg_isready -U tunefy -d tunefy
+
+# Security context
+securityContext:
+  runAsUser: 999
+  fsGroup: 999
+  runAsNonRoot: true
+
+# Pod labels for NetworkPolicies
+podLabels:
+  app: postgresql
+  tier: database
+  environment: prod
+
+# Service account
+serviceAccount:
+  create: true
+  name: postgresql
+
+# Backup configuration (manual backups)
+backup:
+  enabled: false
+  # To be implemented with external backup solution

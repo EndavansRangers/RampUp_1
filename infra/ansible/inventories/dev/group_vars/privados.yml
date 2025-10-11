@@ -1,0 +1,5 @@
+ansible_ssh_common_args: >-
+  -o "IdentitiesOnly=yes"
+  -o "ProxyCommand=ssh
+  -i ~/.ssh/tunefy-dev-key.pem -W %h:%p
+  ubuntu@3.85.38.87"

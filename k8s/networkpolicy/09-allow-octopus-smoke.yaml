@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-octopus-smoke-test
+  namespace: tunefy-prod
+spec:
+  podSelector:
+    matchLabels:
+      app: tunefy-backend
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow smoke test pods from Octopus CI/CD
+    - from:
+        - podSelector:
+            matchLabels:
+              octopus.com/role: smoke-test
+      ports:
+        - protocol: TCP
+          port: 3001
+---
+# Additional policy to allow smoke tests to resolve DNS
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-smoke-test-dns
+  namespace: tunefy-prod
+spec:
+  podSelector:
+    matchLabels:
+      octopus.com/role: smoke-test
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              name: kube-system
+        - podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow connection to backend service
+    - to:
+        - podSelector:
+            matchLabels:
+              app: tunefy-backend
+      ports:
+        - protocol: TCP
+          port: 3001

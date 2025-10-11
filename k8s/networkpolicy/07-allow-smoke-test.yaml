@@ -1,0 +1,19 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-smoke-test
+  namespace: tunefy-dev
+spec:
+  # Aplicar a todos los pods del backend
+  podSelector:
+    matchLabels:
+      app: tunefy-backend
+  policyTypes:
+  - Ingress
+  ingress:
+  # Permitir tráfico de cualquier pod en el namespace (incluye smoke test)
+  - from:
+    - podSelector: {}
+    ports:
+    - protocol: TCP
+      port: 3001

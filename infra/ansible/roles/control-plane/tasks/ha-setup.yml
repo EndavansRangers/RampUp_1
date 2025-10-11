@@ -1,0 +1,63 @@
+---
+# Additional tasks for HA control plane setup
+# Run after kubeadm init on primary control plane
+
+- name: Upload certificates for control plane join
+  command: kubeadm init phase upload-certs --upload-certs
+  register: upload_certs_output
+  changed_when: true
+  when: is_primary_control_plane | bool
+
+- name: Extract certificate key
+  set_fact:
+    certificate_key: "{{ upload_certs_output.stdout_lines | select('match', '^[a-f0-9]{64}$') | first }}"
+  when: 
+    - is_primary_control_plane | bool
+    - upload_certs_output is defined
+
+- name: Generate join command for workers
+  command: kubeadm token create --print-join-command
+  register: join_command_base
+  changed_when: false
+  when: is_primary_control_plane | bool
+
+- name: Set join command facts
+  set_fact:
+    k8s_join_cmd_workers: "{{ join_command_base.stdout }} --cri-socket unix:///run/containerd/containerd.sock"
+    k8s_join_cmd_cp: "{{ join_command_base.stdout }} --control-plane --certificate-key {{ certificate_key }} --cri-socket unix:///run/containerd/containerd.sock"
+  when: is_primary_control_plane | bool
+
+- name: Display join commands
+  debug:
+    msg:
+      - "Worker join command: {{ k8s_join_cmd_workers }}"
+      - "Control plane join command: {{ k8s_join_cmd_cp }}"
+  when: is_primary_control_plane | bool
+
+- name: Store join command in SSM Parameter Store
+  shell: |
+    aws ssm put-parameter \
+      --name "/tunefy/{{ env }}/k8s/join-command" \
+      --type "SecureString" \
+      --value "{{ k8s_join_cmd_workers }}" \
+      --overwrite \
+      --region us-east-1
+  delegate_to: localhost
+  run_once: true
+  when: is_primary_control_plane | bool
+  ignore_errors: yes
+
+- name: Verify etcd cluster health
+  shell: |
+    export KUBECONFIG=/etc/kubernetes/admin.conf
+    kubectl -n kube-system get pods -l component=etcd -o wide
+  register: etcd_pods
+  changed_when: false
+  when: is_primary_control_plane | bool
+
+- name: Display etcd cluster status
+  debug:
+    msg: "{{ etcd_pods.stdout_lines }}"
+  when: 
+    - is_primary_control_plane | bool
+    - etcd_pods is defined

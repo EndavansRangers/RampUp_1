@@ -124,6 +124,43 @@ The project is organized into the following directories and files:
         └── index.js
 ```
 
+## Infrastructure and DevOps
+
+This project includes comprehensive infrastructure as code and CI/CD pipelines:
+
+### Deployment
+- **Kubernetes:** Self-managed cluster on AWS EC2 (Control Plane + Worker nodes)
+- **CNI:** Calico v3.27.0 with VXLAN overlay networking
+- **Container Registry:** AWS ECR
+- **Monitoring:** Prometheus + Grafana stack
+
+### CI/CD Pipeline
+- **Build:** TeamCity (6-step pipeline: checkout, build images, push to ECR, package charts)
+- **Deploy:** Octopus Deploy (automated deployment to Kubernetes with smoke tests)
+- **Observability:** Grafana accessible via AWS ALB
+
+### Documentation
+For operations, deployment, and disaster recovery procedures, see:
+
+- **[Disaster Recovery Complete Guide](docs/importants/DISASTER_RECOVERY_COMPLETE_GUIDE.md)** - Full documentation of infrastructure recovery, networking troubleshooting, and CI/CD setup
+- **[Recovery Quick Reference](docs/importants/RECOVERY_QUICK_REFERENCE.md)** - Quick troubleshooting guide for common issues
+- **[C7 Observability Checklist](docs/importants/C7-Observability-Checklist.md)** - Monitoring implementation checklist
+- **[CI/CD Implementation](docs/importants/CICD_IMPLEMENTATION.md)** - TeamCity and Octopus configuration details
+
+### Infrastructure Management
+```bash
+# Deploy infrastructure with Terraform
+cd infra/terraform/compute-dev
+terraform plan
+terraform apply
+
+# Access cluster
+ssh -J ubuntu@<bastion-ip> ubuntu@<cp-private-ip>
+kubectl get nodes
+```
+
+For detailed troubleshooting, Security Group configurations, and operational procedures, refer to the disaster recovery documentation.
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit pull requests or create issues for bugs and feature requests.

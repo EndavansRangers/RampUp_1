@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: image-prepuller
+  namespace: tunefy-dev
+  labels:
+    app: image-prepuller
+spec:
+  selector:
+    matchLabels:
+      name: image-prepuller
+  template:
+    metadata:
+      labels:
+        name: image-prepuller
+    spec:
+      initContainers:
+      # Pre-pull backend image (latest tag)
+      - name: prepull-backend
+        image: 638325785916.dkr.ecr.us-east-1.amazonaws.com/tunefy-backend-dev:latest
+        command: ['sh', '-c', 'echo "Backend image cached at $(date)"']
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      
+      # Pre-pull frontend image (latest tag)
+      - name: prepull-frontend
+        image: 638325785916.dkr.ecr.us-east-1.amazonaws.com/tunefy-frontend-dev:latest
+        command: ['sh', '-c', 'echo "Frontend image cached at $(date)"']
+        imagePullPolicy: IfNotPresent
+        resources:
+          requests:
+            cpu: 10m
+            memory: 16Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+      
+      containers:
+      # Pause container (minimal resource usage)
+      - name: pause
+        image: registry.k8s.io/pause:3.9
+        resources:
+          requests:
+            cpu: 1m
+            memory: 4Mi
+          limits:
+            cpu: 1m
+            memory: 4Mi
+      
+      imagePullSecrets:
+      - name: ecr-creds
+      
+      # Run on worker nodes only (not on control plane)
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ""
+      
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+        effect: NoSchedule

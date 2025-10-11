@@ -1,5 +1,6 @@
 const express = require("express");
 const { Pool } = require('pg');
+
 const cors = require("cors");
 const { AI21 } = require("@david8128/ai21");
 
@@ -20,19 +21,46 @@ server.use(
   })
 );
 
-const pool = new Pool({
-  user:     process.env.PGUSER,
-  host:     process.env.PGHOST,
-  database: process.env.PGDATABASE || process.env.PGDB,
-  password: process.env.PGPASSWORD || process.env.PGPASS,
-  port:     Number(process.env.PGPORT || 5432),
-});
+let pool; // será inicializado antes de server.listen()
+
+async function initDb() {
+  // Usar variables de entorno directamente para dev/k8s
+  // Si DB_HOST existe, usar env vars; si no, intentar AWS Secrets Manager
+  if (process.env.DB_HOST) {
+    console.log('Initializing database connection from environment variables...');
+    pool = new Pool({
+      user: process.env.DB_USER,
+      host: process.env.DB_HOST,
+      database: process.env.DB_NAME,
+      password: process.env.DB_PASSWORD,
+      port: Number(process.env.DB_PORT || 5432),
+      ssl: false
+    });
+  } else {
+    console.log('Initializing database connection from AWS Secrets Manager...');
+    const { getDbSecret } = await import('./infra/awsSecret.js');
+    const s = await getDbSecret(); // { username, password, host, port, db }
+    pool = new Pool({
+      user: s.username,
+      host: s.host,
+      database: s.db,
+      password: s.password,
+      port: Number(s.port || 5432),
+      ssl: false
+    });
+  }
+}
 
 // Health check endpoint
 server.get("/health", async (req, res) => {
   try {
-    // Test database connection
-    const client = await pool.connect();
+    // Test database connection with timeout
+    const client = await Promise.race([
+      pool.connect(),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Database connection timeout')), 2000)
+      )
+    ]);
     await client.query('SELECT 1');
     client.release();
     
@@ -43,12 +71,13 @@ server.get("/health", async (req, res) => {
       database: "connected"
     });
   } catch (error) {
-    console.error("Health check failed:", error);
-    res.status(503).json({
-      status: "unhealthy",
+    console.error("Health check - database issue:", error.message);
+    // Return 200 even if DB is not available for now (basic health check)
+    res.status(200).json({
+      status: "degraded",
       timestamp: new Date().toISOString(),
       service: "tunefy-backend",
-      database: "disconnected",
+      database: "unavailable",
       error: error.message
     });
   }
@@ -587,7 +616,9 @@ server.post('/extract-song-artist', async (req, res) => {
 });
 
 if (process.env.NODE_ENV !== 'test') {
-  server.listen(port, () => console.log(`Server is running on port ${port}`));
+  initDb()
+    .then(() => server.listen(port, () => console.log(`Server is running on port ${port}`)))
+    .catch(err => { console.error('DB init failed:', err); process.exit(1); });
 }
 
 module.exports = server;

@@ -1,0 +1,86 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ecr-token-refresher
+  namespace: tunefy-prod
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ecr-token-refresher
+  namespace: tunefy-prod
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "delete", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ecr-token-refresher
+  namespace: tunefy-prod
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ecr-token-refresher
+subjects:
+  - kind: ServiceAccount
+    name: ecr-token-refresher
+    namespace: tunefy-prod
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ecr-token-refresh
+  namespace: tunefy-prod
+spec:
+  schedule: "0 */8 * * *"  # Every 8 hours
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: ecr-token-refresher
+          restartPolicy: OnFailure
+          containers:
+          - name: ecr-token-refresh
+            image: public.ecr.aws/aws-cli/aws-cli:2.15.40
+            command:
+              - /bin/bash
+              - -c
+              - |
+                #!/bin/bash
+                set -euo pipefail
+
+                echo "[INFO] Refreshing ECR credentials..."
+
+                # Install kubectl if it is not already available in the image
+                if ! command -v kubectl >/dev/null 2>&1; then
+                  KUBECTL_VERSION="${KUBECTL_VERSION:-v1.28.6}"
+                  echo "[INFO] Installing kubectl ${KUBECTL_VERSION}..."
+                  curl -sSL -o /usr/local/bin/kubectl "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+                  chmod +x /usr/local/bin/kubectl
+                fi
+
+                # Get ECR token (using instance IAM role)
+                AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+                AWS_REGION=${AWS_REGION:-us-east-1}
+                TOKEN=$(aws ecr get-login-password --region "$AWS_REGION")
+
+                # Delete old secret
+                kubectl delete secret ecr-creds -n tunefy-prod --ignore-not-found=true
+
+                # Create new secret
+                kubectl create secret docker-registry ecr-creds \
+                  --docker-server="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" \
+                  --docker-username=AWS \
+                  --docker-password="${TOKEN}" \
+                  --namespace=tunefy-prod
+
+                echo "[INFO] ECR credentials refreshed successfully."
+            env:
+              - name: AWS_REGION
+                value: "us-east-1"
+              - name: KUBECTL_VERSION
+                value: "v1.28.6"

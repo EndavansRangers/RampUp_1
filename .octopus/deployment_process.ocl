@@ -1,0 +1,608 @@
+step "setup-kubeconfig" {
+    name = "Setup Kubeconfig"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Setting up kubeconfig for Kubernetes access ==="
+                
+                # Create kubeconfig directory
+                mkdir -p ~/.kube
+                
+                # Create kubeconfig file for the cluster
+                cat > ~/.kube/config << 'KUBECONFIG_EOF'
+                apiVersion: v1
+                kind: Config
+                clusters:
+                - cluster:
+                    insecure-skip-tls-verify: true
+                    server: https://127.0.0.1:6443
+                  name: tunefy-dev
+                contexts:
+                - context:
+                    cluster: tunefy-dev
+                    user: octopus-deploy
+                    namespace: tunefy-dev
+                  name: tunefy-dev
+                current-context: tunefy-dev
+                users:
+                - name: octopus-deploy
+                  user:
+                    token: "#{Kubernetes.Token}"
+                KUBECONFIG_EOF
+                
+                chmod 600 ~/.kube/config
+                echo "✓ Kubeconfig created successfully"
+                
+                # Test connection
+                kubectl version --client
+                kubectl get nodes
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+    }
+}
+
+step "upsert-ecr-credentials" {
+    name = "Upsert ECR Credentials"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Upserting ECR pull secret ==="
+                
+                # Get AWS credentials from IAM Role (CP has IAM profile)
+                ACCOUNT_ID="638325785916"
+                REGION="us-east-1"
+                NAMESPACE="tunefy-dev"
+                
+                # Get ECR login token using IAM Role
+                echo "Getting ECR login token..."
+                TOKEN=$(aws ecr get-login-password --region "$REGION")
+                
+                echo "Creating Kubernetes secret..."
+                
+                # Create or update secret using kubectl
+                kubectl create secret docker-registry ecr-creds \
+                  --docker-server=${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com \
+                  --docker-username=AWS \
+                  --docker-password="$TOKEN" \
+                  --namespace=$NAMESPACE \
+                  --dry-run=client -o yaml | kubectl apply -f -
+                
+                echo "✓ ECR credentials updated in namespace $NAMESPACE"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+    }
+}
+
+step "cleanup-resources" {
+    name = "Cleanup Old Resources"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        notes = "Clean up old ReplicaSets and stuck pods to free memory"
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Pre-deployment Health Check ==="
+                NAMESPACE="tunefy-dev"
+                
+                # Check if worker nodes are Ready
+                echo "Checking worker node status..."
+                WORKER_READY=$(kubectl get nodes --no-headers | grep -v "control-plane" | awk '{print $2}' | grep -c "Ready" || echo "0")
+                if [ "$WORKER_READY" -eq 0 ]; then
+                    echo "WARNING: No worker nodes are Ready. Waiting 30 seconds..."
+                    sleep 30
+                fi
+                
+                echo "=== Cleaning up old resources ==="
+                
+                # Delete old ReplicaSets (keep only active ones)
+                echo "Deleting old ReplicaSets..."
+                for rs in $(kubectl get replicaset -n $NAMESPACE --no-headers | awk '$2==0 && $3==0 && $4==0 {print $1}'); do
+                    kubectl delete replicaset $rs -n $NAMESPACE --ignore-not-found=true
+                done
+                
+                # Delete stuck pods (Terminating, Pending with errors, Failed, Error, etc.)
+                echo "Deleting stuck pods..."
+                kubectl delete pod --field-selector status.phase=Failed -n $NAMESPACE --force --grace-period=0 --ignore-not-found=true || true
+                kubectl delete pod --field-selector status.phase=Unknown -n $NAMESPACE --force --grace-period=0 --ignore-not-found=true || true
+                
+                # Delete old smoke test pods
+                kubectl delete pod -n $NAMESPACE -l job-name --field-selector status.phase=Succeeded --ignore-not-found=true || true
+                kubectl delete pod -n $NAMESPACE -l job-name --field-selector status.phase=Failed --ignore-not-found=true || true
+                
+                # Force delete any pods stuck in Terminating for more than 5 minutes
+                echo "Checking for long-running Terminating pods..."
+                # Get pods in Terminating state (simpler approach without jq)
+                kubectl get pods -n $NAMESPACE --field-selector status.phase=Terminating --no-headers 2>/dev/null | \
+                  awk '{print $1}' | \
+                  xargs -r kubectl delete pod -n $NAMESPACE --force --grace-period=0 --ignore-not-found=true || true
+                
+                # NUEVO: Eliminar pods de color inactivo (blue/green)
+                echo "Deleting pods from inactive color (blue/green optimization)..."
+                CURRENT_COLOR=$(kubectl get service backend -n $NAMESPACE -o jsonpath='{.spec.selector.colorLive}' 2>/dev/null || echo "unknown")
+                if [ "$CURRENT_COLOR" != "unknown" ] && [ "$CURRENT_COLOR" != "true" ] && [ "$CURRENT_COLOR" != "false" ]; then
+                    INACTIVE_COLOR=$([ "$CURRENT_COLOR" = "blue" ] && echo "green" || echo "blue")
+                    echo "Current live color: $CURRENT_COLOR, deleting $INACTIVE_COLOR pods..."
+                    kubectl delete pods -n $NAMESPACE -l color=$INACTIVE_COLOR --force --grace-period=0 --ignore-not-found=true || true
+                else
+                    echo "Skipping color cleanup (colorLive not set or invalid: $CURRENT_COLOR)"
+                fi
+                
+                # NUEVO: Verificar espacio en disco (warning si hay muchas imágenes)
+                echo "Checking disk space and image cache..."
+                # Count images without jq
+                IMAGE_COUNT=$(kubectl get nodes -o jsonpath='{.items[*].status.images[*].names[0]}' 2>/dev/null | wc -w || echo "0")
+                echo "Worker has approximately $IMAGE_COUNT images cached"
+                if [ "$IMAGE_COUNT" -gt 50 ]; then
+                    echo "⚠️  WARNING: Many images cached ($IMAGE_COUNT), node may be low on disk space"
+                    echo "Consider cleaning up: crictl rmi --prune on the worker node"
+                fi
+                
+                echo "✓ Cleanup completed"
+                # AUMENTADO: Esperar más tiempo para que recursos se liberen
+                echo "Waiting for resources to be fully freed..."
+                sleep 10
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+    }
+}
+
+step "setup-storage" {
+    name = "Setup Storage Class"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_disabled = true
+        is_required = true
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "cd charts/charts && chmod +x setup-storageclass.sh && ./setup-storageclass.sh"
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+
+        packages "charts" {
+            acquisition_location = "ExecutionTarget"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "deploy-postgresql" {
+    name = "Deploy PostgreSQL"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_disabled = true
+        is_required = true
+        notes = "Deploy PostgreSQL using hostPath for better compatibility"
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "1"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Deploying PostgreSQL ==="
+                NAMESPACE="tunefy-dev"
+                
+                # Determine the correct path for the PostgreSQL files
+                # In Octopus, the charts package is extracted to charts/charts/
+                if [ -d "charts/postgresql" ]; then
+                    CHART_DIR="charts/postgresql"
+                elif [ -d "postgresql" ]; then
+                    CHART_DIR="postgresql"
+                else
+                    echo "❌ ERROR: Cannot find PostgreSQL chart directory"
+                    echo "Current directory: $(pwd)"
+                    echo "Directory contents:"
+                    ls -la
+                    exit 1
+                fi
+                
+                echo "Using chart directory: $CHART_DIR"
+                
+                # Clean up any existing PostgreSQL resources
+                echo "Cleaning up existing PostgreSQL resources..."
+                kubectl delete statefulset postgres -n "$NAMESPACE" --ignore-not-found=true || true
+                kubectl delete deployment postgres -n "$NAMESPACE" --ignore-not-found=true || true
+                kubectl delete pvc postgres-storage-postgres-0 -n "$NAMESPACE" --ignore-not-found=true || true
+                
+                # Apply PostgreSQL using hostPath (works without EBS CSI issues)
+                echo "Applying PostgreSQL with hostPath..."
+                kubectl apply -f "$CHART_DIR/postgres-hostpath.yaml" --namespace "$NAMESPACE"
+                
+                # Wait for PostgreSQL pod to be ready
+                echo "Waiting for PostgreSQL pod to be ready (this may take up to 2 minutes)..."
+                kubectl wait --for=condition=ready pod -l app=postgres -n "$NAMESPACE" --timeout=120s
+                
+                # Verify PostgreSQL is running
+                echo "Verifying PostgreSQL status..."
+                kubectl get deployment postgres -n "$NAMESPACE"
+                kubectl get pods -n "$NAMESPACE" -l app=postgres
+                kubectl get svc tunefy-db-rw -n "$NAMESPACE"
+                
+                # Initialize database schema if needed
+                echo "Initializing database schema..."
+                POSTGRES_POD=$(kubectl get pods -n "$NAMESPACE" -l app=postgres -o jsonpath='{.items[0].metadata.name}')
+                
+                # Check if tables already exist
+                TABLE_COUNT=$(kubectl exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U tunefy_user -d tunefy -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ' || echo "0")
+                
+                if [ "$TABLE_COUNT" -gt 0 ]; then
+                    echo "✓ Database schema already exists ($TABLE_COUNT tables found)"
+                else
+                    echo "Initializing database schema..."
+                    # Copy and execute database setup script
+                    kubectl cp "$CHART_DIR/database_setup.sql" "$NAMESPACE/$POSTGRES_POD:/tmp/database_setup.sql"
+                    kubectl exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U tunefy_user -d tunefy -f /tmp/database_setup.sql
+                    echo "✓ Database schema initialized successfully"
+                fi
+                
+                echo "✓ PostgreSQL deployment completed successfully"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+
+        packages "charts" {
+            acquisition_location = "ExecutionTarget"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "init-postgresql-schema" {
+    name = "Initialize PostgreSQL Schema"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_disabled = true
+        is_required = true
+        notes = "Create database tables if they don't exist"
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "5"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                                #!/bin/bash
+                                set -euo pipefail
+                                
+                                echo "=== Initializing PostgreSQL Schema ==="
+                                
+                                NAMESPACE="tunefy-dev"
+                                POSTGRES_POD="postgres-0"
+                                
+                                # Wait for PostgreSQL to be ready
+                                echo "Waiting for PostgreSQL pod to be ready..."
+                                kubectl wait --for=condition=ready pod/$POSTGRES_POD -n $NAMESPACE --timeout=120s
+                                
+                                # Create SQL script inside the pod
+                                kubectl exec -n $NAMESPACE $POSTGRES_POD -- bash -c "cat > /tmp/init_schema.sql << 'EOSQL'
+                CREATE TABLE IF NOT EXISTS merged_songs (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    song_name VARCHAR(500) NOT NULL,
+                    artist_name VARCHAR(500) NOT NULL,
+                    popularity INTEGER DEFAULT 0,
+                    votes INTEGER DEFAULT 0,
+                    session_id VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE TABLE IF NOT EXISTS top_songs (
+                    id SERIAL PRIMARY KEY,
+                    user_id VARCHAR(255) NOT NULL,
+                    song_name VARCHAR(500) NOT NULL,
+                    artist_name VARCHAR(500) NOT NULL,
+                    popularity INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+                
+                CREATE INDEX IF NOT EXISTS idx_merged_songs_user_id ON merged_songs(user_id);
+                CREATE INDEX IF NOT EXISTS idx_merged_songs_popularity ON merged_songs(popularity);
+                CREATE INDEX IF NOT EXISTS idx_merged_songs_votes ON merged_songs(votes);
+                CREATE INDEX IF NOT EXISTS idx_merged_songs_session_id ON merged_songs(session_id);
+                CREATE INDEX IF NOT EXISTS idx_top_songs_user_id ON top_songs(user_id);
+                CREATE INDEX IF NOT EXISTS idx_top_songs_popularity ON top_songs(popularity);
+                EOSQL
+                "
+                                
+                                # Execute the SQL script
+                                echo "Creating tables and indexes..."
+                                kubectl exec -n $NAMESPACE $POSTGRES_POD -- psql -U tunefy_user -d tunefy -f /tmp/init_schema.sql
+                                
+                                echo "✓ PostgreSQL schema initialized successfully"
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+    }
+}
+
+step "deploy-helm-frontend" {
+    name = "Deploy Helm (Frontend)"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "1"
+            Octopus.Action.AutoRetry.MinimumBackoff = "5"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "cd charts/charts && chmod +x deploy-frontend.sh && ./deploy-frontend.sh \"#{Octopus.Release.Number}\""
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+
+        packages "charts" {
+            acquisition_location = "ExecutionTarget"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "deploy-helm-backend-colornext" {
+    name = "Deploy Helm (Backend ColorNext)"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "1"
+            Octopus.Action.AutoRetry.MinimumBackoff = "10"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "cd charts/charts && chmod +x deploy-backend.sh && ./deploy-backend.sh \"#{Octopus.Release.Number}\" \"#{ColorNext}\""
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+
+        packages "charts" {
+            acquisition_location = "ExecutionTarget"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}
+
+step "smoke-test" {
+    name = "Smoke test"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.AutoRetry.MaximumCount = "3"
+            Octopus.Action.AutoRetry.MinimumBackoff = "15"
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Running smoke test on backend service ==="
+                echo "Testing ColorNext: #{ColorNext}"
+                
+                NAMESPACE="tunefy-dev"
+                POD_NAME="smoke-test-$(date +%s)"
+                
+                # Run smoke test using kubectl (without --rm to avoid deletion issues)
+                # Use direct IP to avoid DNS resolution issues
+                BACKEND_IP=$(kubectl get svc backend -n "$NAMESPACE" -o jsonpath='{.spec.clusterIP}')
+                kubectl run "$POD_NAME" \
+                  --namespace="$NAMESPACE" \
+                  --restart=Never \
+                  --image=curlimages/curl:8.10.1 \
+                  -- curl -sf http://$BACKEND_IP:3001/health
+                
+                # Wait for pod to complete
+                echo "Waiting for smoke test to complete..."
+                kubectl wait --for=condition=Ready pod/"$POD_NAME" -n "$NAMESPACE" --timeout=30s || true
+                sleep 2
+                
+                # Get the result
+                RESULT=$(kubectl logs "$POD_NAME" -n "$NAMESPACE" 2>/dev/null || echo "failed")
+                
+                # Clean up the pod (best effort, don't fail if it doesn't work)
+                kubectl delete pod "$POD_NAME" -n "$NAMESPACE" --ignore-not-found=true --wait=false || true
+                
+                # Check if the result contains "healthy"
+                if echo "$RESULT" | grep -q "healthy"; then
+                    echo "✓ Smoke test passed!"
+                    echo "$RESULT"
+                    echo "ColorLive can be set to #{ColorNext}"
+                    set_octopusvariable "SmokeTestResult" "success"
+                else
+                    echo "✗ Smoke test failed!"
+                    echo "$RESULT"
+                    exit 1
+                fi
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+    }
+}
+
+step "update-colorlive" {
+    name = "Update ColorLive"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_required = true
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -euo pipefail
+                
+                echo "=== Updating ColorLive variable ==="
+                echo "Previous ColorLive: #{ColorLive}"
+                echo "New ColorLive: #{ColorNext}"
+                
+                # For now, just log the change
+                # In production, you would use Octopus API to update the variable
+                # This requires an API key and proper permissions
+                
+                echo "✓ ColorLive will be: #{ColorNext} in next deployment"
+                echo "Note: This is logged for tracking. Manual update in Octopus UI or use API."
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+    }
+}
+
+step "deploy-monitoring" {
+    name = "Deploy Monitoring Stack"
+    properties = {
+        Octopus.Action.TargetRoles = "k8s-deployer"
+    }
+
+    action {
+        action_type = "Octopus.Script"
+        environments = ["dev"]
+        is_disabled = true
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                #!/bin/bash
+                set -e
+                
+                echo "Current directory: $(pwd)"
+                echo "Searching for monitoring directory..."
+                
+                # Find the monitoring directory wherever it is
+                MONITORING_DIR=$(find . -type d -name "monitoring" | head -n 1)
+                
+                if [ -z "$MONITORING_DIR" ]; then
+                    echo "ERROR: Cannot find monitoring directory"
+                    echo "Directory structure:"
+                    ls -laR
+                    exit 1
+                fi
+                
+                echo "Found monitoring at: $MONITORING_DIR"
+                cd "$MONITORING_DIR"
+                
+                echo "Contents of monitoring directory:"
+                ls -la
+                
+                # Make script executable and run
+                if [ -f "deploy-monitoring.sh" ]; then
+                    chmod +x deploy-monitoring.sh
+                    bash deploy-monitoring.sh
+                else
+                    echo "ERROR: deploy-monitoring.sh not found in $(pwd)"
+                    exit 1
+                fi
+                EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "Bash"
+            Octopus.Action.TargetRoles = "k8s-deployer"
+        }
+
+        packages "charts" {
+            acquisition_location = "ExecutionTarget"
+            feed = "octopus-server-built-in"
+            package_id = "charts"
+            properties = {
+                Extract = "True"
+                SelectionMode = "immediate"
+            }
+        }
+    }
+}

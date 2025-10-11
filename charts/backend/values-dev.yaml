@@ -1,0 +1,68 @@
+color: "blue"  # Octopus alterna entre "blue" y "green"
+
+image:
+  repository: 638325785916.dkr.ecr.us-east-1.amazonaws.com/tunefy-backend-dev
+  tag: "#{Octopus.Release.Number}"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets:
+  - name: ecr-creds
+
+replicaCount: 1  # Reduced to 1 due to memory constraints in dev cluster
+
+service:
+  name: backend  # Servicio "estable"
+  port: 3001
+  targetPort: 3001
+  type: ClusterIP
+  selector:
+    colorLive: "blue"  # Octopus cambia a "green" tras smoke test
+
+ingress:
+  enabled: false  # Backend solo accesible vía Service interno (frontend nginx hace proxy)
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 256Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 3001
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 3001
+  initialDelaySeconds: 30  # Increased for slower startup in new AWS account
+  periodSeconds: 5
+  timeoutSeconds: 5  # Increased to handle slower responses
+  failureThreshold: 6  # Allow more failures before marking as unready
+
+env:
+  - name: NODE_ENV
+    value: "development"
+  - name: PORT
+    value: "3001"
+  - name: DB_HOST
+    value: "10.100.183.57"  # Direct IP to avoid DNS resolution issues
+  - name: DB_PORT
+    value: "5432"
+  - name: DB_NAME
+    value: "tunefy"
+  - name: DB_USER
+    value: "tunefy_user"
+  - name: DB_PASSWORD
+    value: "Ey7zF2qZdN6g10PW1pafHIxkR"
+
+secrets:
+  enabled: false
+  secretName: backend-db
+  providerClass: spc-backend-db

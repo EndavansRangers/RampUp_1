@@ -1,0 +1,15 @@
+project     = "tunefy"
+region      = "us-east-1"
+env         = "dev"   # o "prod"
+
+# Base repos (we add  -dev/-prod )
+repos       = ["tunefy-frontend", "tunefy-backend"]
+
+# Domain root (if we use Route53 public). if we do not admin that domain using Route53,
+# put create_zone = truethe delagete the NS into your registrator.
+root_domain = "midominio.com"
+create_zone = false
+
+tags = {
+  Owner = "platform"
+}

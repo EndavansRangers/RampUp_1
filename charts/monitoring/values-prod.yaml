@@ -1,0 +1,167 @@
+# Monitoring Stack Production Configuration
+# Grafana + Prometheus + Alertmanager
+
+# Grafana Configuration
+grafana:
+  enabled: true
+  replicas: 1
+
+  # Resource limits - runs on monitoring node
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+  # Node affinity
+  nodeSelector:
+    workload: monitoring
+
+  # Admin credentials (from secret)
+  adminUser: admin
+  adminPassword: "" # Will be set from K8s secret
+
+  # Grafana configuration
+  grafana.ini:
+    server:
+      root_url: "https://grafana.prod.tunefy.site"
+      serve_from_sub_path: false
+    
+    auth.anonymous:
+      enabled: false
+    
+    security:
+      admin_user: admin
+      admin_password: $__file{/etc/secrets/grafana/admin-password}
+      cookie_secure: true
+      cookie_samesite: strict
+    
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+
+  # Ingress configuration
+  ingress:
+    enabled: true
+    ingressClassName: alb
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/healthcheck-path: /api/health
+      alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:365074502389:certificate/PROD_CERT_ARN"
+      alb.ingress.kubernetes.io/ssl-policy: "ELBSecurityPolicy-TLS13-1-2-2021-06"
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/group.name: "grafana-prod-group"
+    
+    hosts:
+      - grafana.prod.tunefy.site
+    
+    path: /
+    pathType: Prefix
+
+  # Persistence
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClassName: gp3
+
+  # Datasources
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://prometheus-server:80
+          access: proxy
+          isDefault: true
+
+  # Dashboards
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: 'default'
+          orgId: 1
+          folder: ''
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/default
+
+# Prometheus Configuration
+prometheus:
+  enabled: true
+
+  server:
+    enabled: true
+    replicaCount: 1
+
+    # Resource limits
+    resources:
+      requests:
+        memory: "512Mi"
+        cpu: "200m"
+      limits:
+        memory: "1Gi"
+        cpu: "1000m"
+
+    # Node affinity
+    nodeSelector:
+      workload: monitoring
+
+    # Persistence
+    persistentVolume:
+      enabled: true
+      size: 10Gi
+      storageClass: gp3
+
+    # Retention
+    retention: "15d"
+
+    # Global scrape config
+    global:
+      scrape_interval: 30s
+      scrape_timeout: 10s
+      evaluation_interval: 30s
+
+  # Alert Manager
+  alertmanager:
+    enabled: true
+    replicaCount: 1
+
+    resources:
+      requests:
+        memory: "128Mi"
+        cpu: "50m"
+      limits:
+        memory: "256Mi"
+        cpu: "200m"
+
+    nodeSelector:
+      workload: monitoring
+
+    persistentVolume:
+      enabled: true
+      size: 2Gi
+
+  # Node Exporter
+  nodeExporter:
+    enabled: true
+    tolerations:
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/control-plane
+        operator: Exists
+
+  # Kube State Metrics
+  kubeStateMetrics:
+    enabled: true
+
+# Labels for NetworkPolicies
+commonLabels:
+  environment: prod
+  managed-by: helm

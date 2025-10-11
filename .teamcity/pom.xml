@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <project>
   <modelVersion>4.0.0</modelVersion>
-  <name>Tunefy Config DSL Script</name>
-  <groupId>Tunefy</groupId>
-  <artifactId>Tunefy_dsl</artifactId>
+  <name>Tunefy_RampUp Config DSL Script</name>
+  <groupId>Tunefy_RampUp</groupId>
+  <artifactId>Tunefy_RampUp_dsl</artifactId>
   <version>1.0-SNAPSHOT</version>
 
   <parent>

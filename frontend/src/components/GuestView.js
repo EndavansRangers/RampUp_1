@@ -7,8 +7,9 @@ import TopTracks from "./TopTracks";
 import LikedSongs from "./LikedSongs";
 import Playlist from "./PlaylistGuest";
 import axios from "axios";
+import { BACKEND_URL, GOOGLE_API_KEY } from "../config";
 
-const GOOGLE_API_KEY = `${process.env.REACT_APP_GOOGLE_KEY}`;
+
 
 function GuestView() {
   const [results, setResults] = useState([]);
@@ -51,7 +52,7 @@ function GuestView() {
       setShowUsernameForm(false);
       
       // Llamar al backend para unirse automáticamente
-      axios.post(`${process.env.REACT_APP_BACKEND_URL}/join-session`, {
+      axios.post(`${BACKEND_URL}/join-session`, {
         sessionId: sessionIdFromURL,
         username: usernameFromURL,
       }).catch(error => {
@@ -66,7 +67,7 @@ function GuestView() {
       setIsJoined(true);
       setShowUsernameForm(false);
       
-      axios.post(`${process.env.REACT_APP_BACKEND_URL}/join-session`, {
+      axios.post(`${BACKEND_URL}/join-session`, {
         sessionId: sessionIdFromURL,
         username: tokenUsername,
       }).catch(error => {
@@ -96,7 +97,7 @@ function GuestView() {
       try {
         // Llamar al backend para unirse a la sesión
         const response = await axios.post(
-          `${process.env.REACT_APP_BACKEND_URL}/join-session`,
+          `${BACKEND_URL}/join-session`,
           {
             sessionId: sessionId,
             username: tempUsername.trim(),
@@ -226,7 +227,7 @@ function GuestView() {
       const fetchVotes = async () => {
         try {
           const response = await axios.get(
-            `${process.env.REACT_APP_BACKEND_URL}/votes`
+            `${BACKEND_URL}/votes`
           );
           setVotes(response.data.votes);
         } catch (error) {
@@ -268,7 +269,7 @@ function GuestView() {
     try {
       console.log("Sending vote to backend...");
       const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/vote`,
+        `${BACKEND_URL}/vote`,
         {
           method: "POST",
           headers: {
@@ -321,7 +322,7 @@ function GuestView() {
 
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/leave-session`,
+        `${BACKEND_URL}/leave-session`,
         {
           sessionId,
           username,

@@ -7,6 +7,7 @@ import QRCode from "qrcode.react";
 import axios from "axios";
 import "../css/SessionStyles.css";
 import "../css/HostViewStyles.css";
+import { BACKEND_URL, FRONTEND_URL } from "../config";
 
 function HostView() {
   const [results, setResults] = useState([]);
@@ -44,7 +45,7 @@ function HostView() {
       }
       
       const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/votes?sessionId=${sessionId}`
+        `${BACKEND_URL}/votes?sessionId=${sessionId}`
       );
       if (!response.ok) {
         throw new Error("Failed to fetch votes");
@@ -131,7 +132,7 @@ function HostView() {
       const fetchVotes = async () => {
         try {
           const response = await axios.get(
-            `${process.env.REACT_APP_BACKEND_URL}/votes?sessionId=${sessionId}`
+            `${BACKEND_URL}/votes?sessionId=${sessionId}`
           );
           setVotes(response.data.votes);
         } catch (error) {
@@ -148,11 +149,11 @@ function HostView() {
     }
   }, [isPlaylistGenerated]);
   const handleCreateSession = async () => {
-    console.log("Backend URL:", process.env.REACT_APP_BACKEND_URL);
+    console.log("Backend URL:", BACKEND_URL);
 
     try {
       const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/create-session`,
+        `${BACKEND_URL}/create-session`,
         {
           method: "POST",
           headers: {
@@ -218,7 +219,7 @@ function HostView() {
 
     try {
       const response = await axios.post(
-        `${process.env.REACT_APP_BACKEND_URL}/remove-user`,
+        `${BACKEND_URL}/remove-user`,
         {
           sessionId,
           username,
@@ -299,7 +300,7 @@ function HostView() {
 
     try {
       console.log('Trying to remove song by songid: ', songId);
-      const response = await axios.delete(`${process.env.REACT_APP_BACKEND_URL}/songs/${songId}`);
+      const response = await axios.delete(`${BACKEND_URL}/songs/${songId}`);
       console.log('Song removed successfully', response.data);
     } catch (error) {
       console.error('Error removing song', error);
@@ -324,7 +325,7 @@ function HostView() {
         return;
       }
       
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/playlist?sessionId=${sessionId}`);
+      const response = await fetch(`${BACKEND_URL}/playlist?sessionId=${sessionId}`);
       const data = await response.json();
       setSongs(data.sort((a, b) => b.votes - a.votes));
       console.log("Playlist fetched successfully for session:", sessionId);
@@ -339,7 +340,7 @@ function HostView() {
     try {
       // Send request to backend to clear database
       const response = await fetch(
-        `${process.env.REACT_APP_BACKEND_URL}/clear-database`,
+        `${BACKEND_URL}/clear-database`,
         {
           method: "POST",
         }
@@ -372,7 +373,7 @@ function HostView() {
   };
 
 
-  const joinLink = `${process.env.REACT_APP_FRONTEND_URL}/guestview?sessionId=${sessionId}`;
+  const joinLink = `${FRONTEND_URL}/guestview?sessionId=${sessionId}`;
   return (
     <div className="container-fluid">
       <div className="row">
@@ -484,12 +485,12 @@ function HostView() {
           <div className="session-info">
             <div className="session-id">Session ID: {sessionId}</div>
             <a href={joinLink} className="join-link">
-              Join Link: {process.env.REACT_APP_FRONTEND_URL}/guestview?sessionId=
+              Join Link: {FRONTEND_URL}/guestview?sessionId=
               {sessionId}
             </a>
             <div className="qr-code">
               <QRCode
-                value={`${process.env.REACT_APP_FRONTEND_URL}/guestview?sessionId=${sessionId}`}
+                value={`${FRONTEND_URL}/guestview?sessionId=${sessionId}`}
               />
             </div>
           </div>

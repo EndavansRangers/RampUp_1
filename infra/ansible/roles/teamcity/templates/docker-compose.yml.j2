@@ -1,0 +1,22 @@
+services:
+  teamcity:
+    image: {{ teamcity_images.server }}
+    restart: always
+    ports:
+      - "{{ teamcity_http_port }}:8111"
+    volumes:
+      - {{ teamcity_dir }}/data:/data/teamcity_server/datadir
+      - {{ teamcity_dir }}/logs:/opt/teamcity/logs
+  agent:
+    build:
+      context: .
+      dockerfile: Dockerfile.agent
+    image: teamcity-agent-with-aws:latest
+    restart: always
+    environment:
+      - SERVER_URL=http://teamcity:8111
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - {{ teamcity_dir }}/agent:/data/teamcity_agent/conf
+      - /usr/local/bin/helm:/usr/local/bin/helm:ro
+    depends_on: [ teamcity ]

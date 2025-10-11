@@ -1,0 +1,27 @@
+services:
+  mssql:
+    image: {{ mssql_image }}
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD={{ mssql_sa_password }}
+    ports:
+      - "1433:1433"
+    volumes:
+      - {{ octopus_dir }}/mssql:/var/opt/mssql
+    restart: always
+
+  octopus:
+    image: {{ octopus_image }}
+    depends_on: [ mssql ]
+    environment:
+      - ACCEPT_EULA=Y
+      - ADMIN_USERNAME={{ octopus_admin_username }}
+      - ADMIN_PASSWORD={{ octopus_admin_password }}
+      - ADMIN_EMAIL={{ octopus_admin_email }}
+      - DB_CONNECTION_STRING=Server=mssql,1433;Database=OctopusDeploy;User Id=sa;Password={{ mssql_sa_password }};
+    ports:
+      - "{{ octopus_http_port }}:8080"
+      - "{{ octopus_listen_port }}:10943"
+    volumes:
+      - {{ octopus_dir }}/octopus:/octopus
+    restart: always

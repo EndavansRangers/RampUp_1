@@ -1,0 +1,68 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: tunefy-db
+  namespace: tunefy-prod
+spec:
+  instances: 2  # HA for production
+  imageName: ghcr.io/cloudnative-pg/postgresql:16.1
+  
+  storage:
+    storageClass: gp3
+    size: 10Gi
+  
+  bootstrap:
+    initdb:
+      database: tunefy
+      owner: tunefy_user
+      secret:
+        name: tunefy-db-credentials
+  
+  resources:
+    requests:
+      memory: "256Mi"  # Optimized for t3.micro workers
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  
+  monitoring:
+    enablePodMonitor: true
+  
+  postgresql:
+    parameters:
+      shared_buffers: "128MB"
+      max_connections: "100"
+      work_mem: "4MB"
+      maintenance_work_mem: "32MB"
+      effective_cache_size: "256MB"
+      wal_buffers: "8MB"
+      checkpoint_completion_target: "0.9"
+      random_page_cost: "1.1"  # SSD optimized
+    pg_hba:
+      - host all all all scram-sha-256
+  
+  primaryUpdateStrategy: unsupervised
+  
+  backup:
+    barmanObjectStore:
+      destinationPath: s3://tunefy-prod-postgresql-backups/postgresql
+      s3Credentials:
+        accessKeyId:
+          name: aws-s3-creds
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: aws-s3-creds
+          key: ACCESS_SECRET_KEY
+        region:
+          name: aws-s3-creds
+          key: AWS_REGION
+    retentionPolicy: "30d"
+    
+  # Scheduled backups
+  # backup:
+  #   schedule: "0 0 0 * * *"  # Daily at midnight
+  #   backupOwnerReference: self
+
+
+
