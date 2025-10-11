@@ -38,7 +38,7 @@ RUN echo 'resolver 10.96.0.10 valid=10s;' > /etc/nginx/conf.d/default.conf && \
     echo '  root /usr/share/nginx/html;' >> /etc/nginx/conf.d/default.conf && \
     echo '  # Proxy API requests to backend service (priority with ^~ prefix)' >> /etc/nginx/conf.d/default.conf && \
     echo '  location ^~ /api {' >> /etc/nginx/conf.d/default.conf && \
-    echo '    set $backend "10.99.25.161:3001";' >> /etc/nginx/conf.d/default.conf && \
+    echo '    set $backend "tunefy-backend-service.default.svc.cluster.local";' >> /etc/nginx/conf.d/default.conf && \
     echo '    rewrite ^/api(.*)$ $1 break;' >> /etc/nginx/conf.d/default.conf && \
     echo '    proxy_pass http://$backend;' >> /etc/nginx/conf.d/default.conf && \
     echo '    proxy_http_version 1.1;' >> /etc/nginx/conf.d/default.conf && \
