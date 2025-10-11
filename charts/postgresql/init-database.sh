@@ -37,3 +37,4 @@ echo "Verifying database tables..."
 kubectl exec -n "$NAMESPACE" "$POSTGRES_POD" -- psql -U tunefy_user -d tunefy -c "\dt"
 
 echo "✓ PostgreSQL database initialization completed"
+
