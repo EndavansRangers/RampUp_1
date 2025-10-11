@@ -55,3 +55,7 @@ else
   echo "⚠️  Only $INSTANCE_COUNT instance(s) launched. Check ASG status in AWS Console."
 fi
 
+
+
+
+

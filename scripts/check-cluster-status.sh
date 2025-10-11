@@ -19,3 +19,7 @@ else
   echo "  ssh -i ~/.ssh/tunefy-dev-key.pem -o 'ProxyCommand=ssh -i ~/.ssh/tunefy-dev-key.pem -W %h:%p -q ubuntu@<BASTION_IP>' ubuntu@<CP_IP>"
 fi
 
+
+
+
+
