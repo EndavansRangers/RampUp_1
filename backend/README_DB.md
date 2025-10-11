@@ -4,6 +4,7 @@ Este directorio contiene los scripts necesarios para configurar la base de datos
 
 ## Archivos incluidos
 
+
 - `database_setup.sql` - Script SQL para crear las tablas y estructuras necesarias
 - `setup.ps1` - Script de PowerShell para automatizar la configuración completa
 - `.env.example` - Plantilla del archivo de configuración de variables de entorno
