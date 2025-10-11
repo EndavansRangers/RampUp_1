@@ -35,3 +35,4 @@ test-postgresql-deployment.sh
 k8s-client-cert.pfx
 client-key.pem
 client-cert.pem
+tunefy-dev-key.pem
