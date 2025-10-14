@@ -89,7 +89,9 @@ object Tunefy : BuildType({
                 # FRONTEND_URL es el dominio público de desarrollo
                 # GOOGLE_KEY para YouTube API (debería estar en TeamCity Parameters en producción)
                 # BACKEND_SERVICE_NAME es el servicio interno de K8s en namespace tunefy-dev
+                # --no-cache: Forzar rebuild completo para aplicar nuevos build args (especialmente BACKEND_SERVICE_NAME)
                 docker build -t "${'$'}FRONT" \
+                  --no-cache \
                   --build-arg REACT_APP_BACKEND_URL="/api" \
                   --build-arg REACT_APP_FRONTEND_URL="https://app.dev.tunefy.site" \
                   --build-arg REACT_APP_GOOGLE_KEY="AIzaSyAAL1GtGXpN3NEgcbRUqQvEzNaRMk740uM" \
