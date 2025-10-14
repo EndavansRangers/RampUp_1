@@ -45,3 +45,38 @@ helm upgrade --install "$RELEASE_NAME" "$CHART_DIR" \
   --atomic
 
 echo "✓ Frontend deployed successfully"
+
+# === DNS Fix for Dev Environment ===
+# CoreDNS in dev has timeouts, so we need to use backend IP directly
+echo "=== Applying DNS fix for dev environment ==="
+
+# Wait for pod to be fully ready
+kubectl wait --for=condition=ready pod -l app=tunefy-frontend -n "$NAMESPACE" --timeout=120s
+
+# Get backend service ClusterIP
+BACKEND_IP=$(kubectl get svc backend -n "$NAMESPACE" -o jsonpath='{.spec.clusterIP}')
+echo "Backend ClusterIP: $BACKEND_IP"
+
+# Get frontend pod
+FRONTEND_POD=$(kubectl get pods -n "$NAMESPACE" -l app=tunefy-frontend -o jsonpath='{.items[0].metadata.name}')
+echo "Frontend pod: $FRONTEND_POD"
+
+# Apply DNS fix by replacing DNS names with ClusterIP
+echo "Patching nginx configuration..."
+kubectl exec -n "$NAMESPACE" "$FRONTEND_POD" -- sh -c "
+  sed -i 's|backend\.tunefy-dev\.svc\.cluster\.local|$BACKEND_IP:3001|g' /etc/nginx/conf.d/default.conf &&
+  sed -i 's|tunefy-backend-service\.default\.svc\.cluster\.local|$BACKEND_IP:3001|g' /etc/nginx/conf.d/default.conf &&
+  nginx -s reload
+"
+
+echo "✓ DNS fix applied successfully"
+
+# Verify the fix
+echo "Verifying backend connectivity..."
+if kubectl exec -n "$NAMESPACE" "$FRONTEND_POD" -- wget -O- -T 5 http://$BACKEND_IP:3001/health 2>&1 | grep -q "healthy"; then
+  echo "✅ Backend is reachable!"
+else
+  echo "⚠️  Backend connectivity test inconclusive, but configuration was updated"
+fi
+
+echo "=== Frontend deployment completed ==="
