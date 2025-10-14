@@ -3,6 +3,9 @@ image:
   tag: "#{Octopus.Release.Number}"
   pullPolicy: IfNotPresent
 
+# Environment identifier (used for conditional logic in templates)
+environment: dev
+
 imagePullSecrets:
   - name: ecr-creds
 

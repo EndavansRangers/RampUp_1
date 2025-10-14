@@ -30,6 +30,22 @@ spec:
       - name: frontend
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+        {{- if eq .Values.environment "dev" }}
+        lifecycle:
+          postStart:
+            exec:
+              command:
+              - /bin/sh
+              - -c
+              - |
+                # Fix DNS issue in dev - replace DNS name with ClusterIP
+                # This is a workaround for CoreDNS timeouts in dev environment
+                sleep 2
+                BACKEND_IP="10.99.25.161"
+                sed -i "s|backend\.tunefy-dev\.svc\.cluster\.local|$BACKEND_IP:3001|g" /etc/nginx/conf.d/default.conf
+                sed -i "s|tunefy-backend-service\.default\.svc\.cluster\.local|$BACKEND_IP:3001|g" /etc/nginx/conf.d/default.conf
+                nginx -s reload
+        {{- end }}
         ports:
         - containerPort: {{ .Values.service.targetPort }}
           protocol: TCP
