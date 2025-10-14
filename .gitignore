@@ -36,3 +36,6 @@ k8s-client-cert.pfx
 client-key.pem
 client-cert.pem
 tunefy-dev-key.pem
+
+
+k8s/prod/alertmanager-config.yaml
