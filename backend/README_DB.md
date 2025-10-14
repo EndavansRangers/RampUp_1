@@ -10,7 +10,6 @@ Este directorio contiene los scripts necesarios para configurar la base de datos
 
 ## Requisitos previos
 
-
 1. **PostgreSQL** instalado y funcionando
    - Descargar desde: https://www.postgresql.org/download/
    - Asegurar que `psql` esté disponible en el PATH
