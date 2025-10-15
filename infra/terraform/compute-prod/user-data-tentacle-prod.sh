@@ -1,6 +1,5 @@
 #!/bin/bash
-# Octopus Tentacle Installation Script for Production
-# This script installs Octopus Tentacle in Polling mode to connect to Octopus in Dev account
+
 
 set -e
 
@@ -154,13 +153,13 @@ echo "=== Kubeconfig configured ==="
 echo "Testing connection..."
 kubectl get nodes
 
-echo "✅ Kubernetes access configured successfully!"
+echo "Kubernetes access configured successfully!"
 KUBESCRIPT
 
 chmod +x /home/ubuntu/setup-kubeconfig.sh
 
 # Note: kubeconfig setup requires SSH key, will be done manually or via Secrets Manager
-echo "⚠️  Run /home/ubuntu/setup-kubeconfig.sh to configure kubectl access"
+echo "Run /home/ubuntu/setup-kubeconfig.sh to configure kubectl access"
 
 # Create deployment helper scripts
 mkdir -p /home/ubuntu/octopus-scripts
@@ -195,7 +194,7 @@ kubectl set image deployment/tunefy-$APP_NAME \
 # Wait for rollout
 kubectl rollout status deployment/tunefy-$APP_NAME -n $NAMESPACE --timeout=5m
 
-echo "✅ Deployment complete!"
+echo "Deployment complete!"
 DEPLOYSCRIPT
 
 cat > /home/ubuntu/octopus-scripts/rollback-app.sh <<'ROLLBACKSCRIPT'
@@ -218,7 +217,7 @@ kubectl rollout undo deployment/tunefy-$APP_NAME -n $NAMESPACE
 
 kubectl rollout status deployment/tunefy-$APP_NAME -n $NAMESPACE --timeout=5m
 
-echo "✅ Rollback complete!"
+echo "Rollback complete!"
 ROLLBACKSCRIPT
 
 chmod +x /home/ubuntu/octopus-scripts/*.sh
@@ -233,7 +232,7 @@ AWS_REGION="us-east-1"
 aws ecr get-login-password --region $AWS_REGION | \
     docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-echo "✅ ECR login successful"
+echo "ECR login successful"
 ECRSCRIPT
 
 chmod +x /home/ubuntu/ecr-login.sh

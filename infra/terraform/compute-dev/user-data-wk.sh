@@ -9,7 +9,7 @@ exec > >(tee /var/log/user-data.log)
 exec 2>&1
     
 echo "=========================================="
-echo "🚀 Starting Kubernetes Worker Bootstrap"
+echo "Starting Kubernetes Worker Bootstrap"
 echo "=========================================="
     
 # Set hostname using IMDSv2 (Instance Metadata Service v2)
