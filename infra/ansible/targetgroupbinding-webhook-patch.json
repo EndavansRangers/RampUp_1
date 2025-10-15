@@ -1,7 +1,0 @@
-[
-  {
-    "op": "replace",
-    "path": "/webhooks/2/failurePolicy",
-    "value": "Ignore"
-  }
-]
