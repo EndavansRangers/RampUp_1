@@ -89,7 +89,7 @@ object Tunefy : BuildType({
                 
                 docker build -t "${'$'}FRONT" \
                   --build-arg REACT_APP_BACKEND_URL="/api" \
-                  --build-arg REACT_APP_FRONTEND_URL="https://app.dev.tunefy.site" \
+                  --build-arg REACT_APP_FRONTEND_URL="https://k8s-tunefyde-tunefyfr-798b6aea21-1369834460.us-east-1.elb.amazonaws.com" \
                   --build-arg REACT_APP_GOOGLE_KEY="AIzaSyAAL1GtGXpN3NEgcbRUqQvEzNaRMk740uM" \
                   -f frontend/Dockerfile frontend
                   
