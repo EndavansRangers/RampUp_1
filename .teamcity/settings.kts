@@ -85,9 +85,8 @@ object Tunefy : BuildType({
                 FRONT="${'$'}DOCKER_REGISTRY/tunefy-frontend-dev:${'$'}DOCKER_TAG"
                 
                 # Backend URL apunta al mismo frontend ALB con prefijo /api
-                # El nginx del frontend hace proxy a backend service interno
-                # FRONTEND_URL es el dominio público de desarrollo
-                # GOOGLE_KEY para YouTube API (debería estar en TeamCity Parameters en producción)
+                # FRONTEND_URL : dominio público de desarrollo
+                
                 docker build -t "${'$'}FRONT" \
                   --build-arg REACT_APP_BACKEND_URL="/api" \
                   --build-arg REACT_APP_FRONTEND_URL="https://app.dev.tunefy.site" \
